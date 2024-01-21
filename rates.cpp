@@ -81,3 +81,31 @@ Rcpp::NumericVector SEIR_N_get_rates(const Rcpp::NumericVector &x, const Rcpp::N
  
   return r; // Return vector of rates
 }
+
+Rcpp::NumericMatrix Model::populate_matrix(Rcpp::NumericVector values){
+  Rcpp::NumericMatrix S(num_params,num_reactions);
+  for(int i=0;i<values.length();++i){
+    S(i/num_reactions,i%num_reactions) = values[i];
+  }
+  return(S);
+}
+
+Rcpp::NumericVector BDI::get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta){
+  double P=x[0]; // Define species
+  double lambda=theta[0], mu=theta[1], gamma=theta[2]; // Define parameters
+  Rcpp::NumericVector r(3); // Number of reactions 
+  r[0]=lambda*P; // Calculate rates
+  r[1]=mu*P;
+  r[2]=gamma;
+  return r; // Return vector of rates
+}
+Rcpp::NumericMatrix BDI::get_S(){
+  num_reactions = 2;
+  num_states = 2;
+  num_params = 3;
+  values = {-1,0,
+            1,-1};
+  return(populate_matrix(values));
+}
+
+

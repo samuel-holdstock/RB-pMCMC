@@ -24,4 +24,24 @@ Rcpp::NumericVector SIR_N_get_rates(const Rcpp::NumericVector &x, const Rcpp::Nu
 //[[Rcpp::export]]
 Rcpp::NumericVector SEIR_N_get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta);
 
+class Model{
+  public:
+    virtual Rcpp::NumericVector get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta) = 0;
+    virtual Rcpp::NumericMatrix get_S();
+    int num_reactions;
+    int num_states;
+    int num_params;
+  protected:
+    Rcpp::NumericVector values;
+    Rcpp::NumericMatrix populate_matrix(Rcpp::NumericVector values);
+};
+
+class BDI: public Model{
+  public:
+    Rcpp::NumericVector get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta) override;
+    Rcpp::NumericMatrix get_S() override;
+};
+
+
+
 #endif
