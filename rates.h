@@ -13,8 +13,15 @@ class RateDictionary{
 
 void initialize_rates(RateDictionary &rate_dictionary);
 
+//[[Rcpp::export]]
 Rcpp::NumericVector BDI_get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta);
+//[[Rcpp::export]]
 Rcpp::NumericVector SIR_get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta);
+//[[Rcpp::export]]
 Rcpp::NumericVector SEIR_get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta);
+//[[Rcpp::export]]
+Rcpp::NumericVector SIR_N_get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta);
+//[[Rcpp::export]]
+Rcpp::NumericVector SEIR_N_get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta);
 
 #endif

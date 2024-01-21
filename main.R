@@ -1,14 +1,22 @@
-source("Rlibraries")
+source("utils/Rlibraries.R")
 
 sourceCpp("main.cpp")
-run_algorithm(c(1000),c(0.1,0.1,50), BDI.S, 1, c(1100), c(900), 0.1,"BDI")
-run_algorithm(c(1000,5),c(0.01,0.25), SIR.S, 1, c(1050,20), c(900,0), 0.1,"SIR")
-run_algorithm(c(1000,0,5),c(.018,1/12,1/3), SEIR.S, 1, c(1050,20,20), c(900,0,0), 0.1,"SEIR")
 
-plot(sim_data(c(1000),c(0.05,0.1,50), BDI.S, 1, c(1100), c(900), 0.1,"BDI"))
+source("examples/gillespie/SIR_N_plot.R")
+source("examples/gillespie/SEIR_N_plot.R")
 
-sim_data(c(1000),c(0.05,0.1,50), BDI.S, 1, c(1100), c(900), 0.1,"BDI")
-plot(sim_data(c(1000,5),c(0.01,0.25), SIR.S, 1, c(1050,20), c(900,0), 0.1,"SIR")[,-3])
-plot(sim_data(c(1000,5),c(0.01,0.25), SIR.S, 1, c(1050,20), c(900,0), 0.1,"SIR")[,-2])
-sim_data(c(1000,0,5),c(.018,1/12,1/3), SEIR.S, 1, c(1050,20,20), c(900,0,0), 0.1,"SEIR")
+lower = c(10)
+upper = c(20)
 
+theta = c(0.1,0.1,0.1)
+S = BDI.S
+
+test(upper,lower)
+state_to_index(c(1,0,2),c(1,0,2),c(3,5,3))
+index_to_state(34,c(1,0,2),c(3,5,3))
+
+m = test(lower,upper,theta,S,"BDI")
+test(lower,upper,theta,S,"BDI")
+m
+expm(m)
+SS_exp_Q(m,prec=1e-15)

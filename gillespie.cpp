@@ -69,10 +69,8 @@ Rcpp::NumericMatrix gillespie_alg_entire(const Rcpp::NumericVector &x0, const Rc
   Rcpp::List results;
   Rcpp::NumericMatrix data(0,n_spec+1);
   Rcpp::NumericVector box_status(2);
-  int counter = 0;
-
   while (tnext<tout) {
-    data = add_row_time(data,xcurr,tnext);
+    data = add_row_time(data,xcurr,tcurr);
     if (tcurr <= tout-tau && tout-tau < tnext){
       xttau = xcurr[0];
     }
