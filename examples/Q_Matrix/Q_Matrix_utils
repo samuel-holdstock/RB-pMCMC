@@ -1,0 +1,19 @@
+test_exp_time = function(lower,upper,theta,S,model,obs_index,tau){
+    Q = get_coffin_matrix(lower,upper,theta,S,model)
+    v = matrix(rep(0,nrow(Q)),nrow=1)
+    v[obs_index] = 1
+    return(v_exp_Q(v,Q*tau,prec=1e-15))
+}
+benchmark_exp_time = function(lower_mat,upper_mat,theta,S,model,obs_index,tau){
+    n_tests = nrow(lower_mat)
+    med_times = rep(0,n_tests)
+    Q_size = rep(0,n_tests)
+    for(i in 1:n_tests){
+        lower = lower_mat[i,]
+        upper = upper_mat[i,]
+        med_times[i] = summary(microbenchmark(test_exp_time(lower,upper,theta,S,model,obs_index,tau),unit='micro'))$median
+        Q_size[i] = nrow(get_coffin_matrix(lower,upper,theta,S,model))^2
+    }
+    return(list(size=Q_size,times=med_times))
+}
+
