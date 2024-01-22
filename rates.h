@@ -3,6 +3,7 @@
 
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
+#include <memory>
 
 class RateDictionary{
     public:
@@ -27,21 +28,50 @@ Rcpp::NumericVector SEIR_N_get_rates(const Rcpp::NumericVector &x, const Rcpp::N
 class Model{
   public:
     virtual Rcpp::NumericVector get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta) = 0;
-    virtual Rcpp::NumericMatrix get_S();
+    Rcpp::NumericMatrix populate_matrix(Rcpp::NumericVector values);
+    std::string name;
+    std::string name_backup="Test";
     int num_reactions;
     int num_states;
     int num_params;
-  protected:
+    Rcpp::NumericMatrix S;
     Rcpp::NumericVector values;
-    Rcpp::NumericMatrix populate_matrix(Rcpp::NumericVector values);
+    virtual ~Model() = default;
 };
 
 class BDI: public Model{
   public:
     Rcpp::NumericVector get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta) override;
-    Rcpp::NumericMatrix get_S() override;
+    BDI();
+};
+class SIR: public Model{
+  public:
+    Rcpp::NumericVector get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta) override;
+    void initialize();
+};
+class SIR_N: public Model{
+  public:
+    Rcpp::NumericVector get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta) override;
+    void initialize();
+};
+class SEIR: public Model{
+  public:
+    Rcpp::NumericVector get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta) override;
+    void initialize();
+};
+class SEIR_N: public Model{
+  public:
+    Rcpp::NumericVector get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta) override;
+    void initialize();
 };
 
+class ModelDictionary{
+  public:
+    ModelDictionary();
+    std::map<std::string,std::shared_ptr<Model>> model_dictionary;
+    void add_model(std::shared_ptr<Model> model);
+    std::shared_ptr<Model> get_model(std::string name);
+};
 
 
 #endif

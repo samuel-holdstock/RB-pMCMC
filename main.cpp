@@ -1,5 +1,7 @@
 #include <iostream>
 #include <random>
+#include <memory>
+
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 
@@ -37,4 +39,11 @@ std::string str
 ){
     std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> rates_function = initialize_algorithm(str);
     return(Qmat(lower,upper,theta,S,rates_function));
+}
+
+//[[Rcpp::export]]
+void test(){
+    ModelDictionary obj;
+    obj.get_model("BDI");
+    //std::cout<<obj.get_model("BDIs")->name;
 }
