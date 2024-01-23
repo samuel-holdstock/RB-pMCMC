@@ -13,6 +13,7 @@ Rcpp::NumericVector gillespie_alg(const Rcpp::NumericVector &x0, const Rcpp::Num
   double rtot, tcurr=0, tnext=0;
   Rcpp::NumericVector xcurr=clone(x0);
   Rcpp::NumericVector r=rates_function(xcurr,theta);
+  std::cout<<"A";
   rtot=sum(r);
   tnext=tcurr-log(R::runif(0,1))/rtot; // add Exp(rtot)
   double xttau;
@@ -56,7 +57,7 @@ Rcpp::NumericVector gillespie_alg(const Rcpp::NumericVector &x0, const Rcpp::Num
 Rcpp::NumericMatrix gillespie_alg_entire(const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, const Rcpp::NumericMatrix &S, double tout,
                             const Rcpp::NumericVector &upper, const Rcpp::NumericVector &lower, double tau,
                             std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> rates_function) {
-
+  std::cout<<"A";
   int n_spec = S.nrow(); // Number of species
   int n_react = S.ncol(); // Number of reactions
   double rtot, tcurr=0, tnext=0;

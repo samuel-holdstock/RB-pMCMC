@@ -24,3 +24,4 @@ plot(benchmarkQ$times,main="Time to calculate Exp(Qtau)",xlab='Test case',ylab='
 lines(benchmarkQs$times,type='o',col='red')
 legend("topleft",legend=c("Dense","Sparse"),col=c("blue","red"),inset=0.05,lty=c(1,1))
 
+test(100,theta)
