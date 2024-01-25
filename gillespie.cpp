@@ -4,8 +4,8 @@
 #include "gillespie.h"
 
 
-Rcpp::NumericVector gillespie_alg(const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, const Rcpp::NumericMatrix &S, double tout,
-                            const Rcpp::NumericVector &upper, const Rcpp::NumericVector &lower, double tau,
+Rcpp::List gillespie_alg(const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, const Rcpp::NumericMatrix &S, double tout,
+                            const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper, double tau,
                             std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> rates_function) {
 
   int n_spec = S.nrow(); // Number of species
@@ -13,16 +13,17 @@ Rcpp::NumericVector gillespie_alg(const Rcpp::NumericVector &x0, const Rcpp::Num
   double rtot, tcurr=0, tnext=0;
   Rcpp::NumericVector xcurr=clone(x0);
   Rcpp::NumericVector r=rates_function(xcurr,theta);
-  std::cout<<"A";
   rtot=sum(r);
   tnext=tcurr-log(R::runif(0,1))/rtot; // add Exp(rtot)
-  double xttau;
-  bool inS=TRUE;
-  Rcpp::NumericVector values(2+n_spec);
+  Rcpp::NumericVector xttau_data;
+  Rcpp::NumericVector xt_data;
+  bool inS=true;
+  bool set_xttau = false;
 
   while (tnext<tout) {
     if (tcurr <= tout-tau && tout-tau < tnext){
-      xttau = xcurr[0];
+      xttau_data = clone(xcurr);
+      set_xttau  = true;
     }
     tcurr=tnext;
     double u = R::runif(0,1);
@@ -35,9 +36,8 @@ Rcpp::NumericVector gillespie_alg(const Rcpp::NumericVector &x0, const Rcpp::Num
         }
     }
     for(int i=0; i<n_spec; ++i){
-        inS = TRUE;
         if (lower[i] > xcurr[i] || xcurr[i] > upper[i]){
-            inS = FALSE;
+            inS = false;
             break;
         }
     }
@@ -45,19 +45,17 @@ Rcpp::NumericVector gillespie_alg(const Rcpp::NumericVector &x0, const Rcpp::Num
     rtot=sum(r);
     tnext=tcurr-log(R::runif(0,1))/rtot; // add Exp(rtot)
   }
-  values[0] = xttau;
-  values[1] = inS;
-  for(int i=0;i<n_spec;++i){
-      values[2+i] = xcurr[i];
+  if(set_xttau == false){
+    xttau_data = xcurr;
   }
-
-  return values;
+  xt_data = xcurr;
+  Rcpp::List results = Rcpp::List::create(Rcpp::Named("xttau_data")=xttau_data, Rcpp::Named("inS")=inS, Rcpp::Named("xt_data")=xt_data);
+  return results;
 }
 
-Rcpp::NumericMatrix gillespie_alg_entire(const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, const Rcpp::NumericMatrix &S, double tout,
-                            const Rcpp::NumericVector &upper, const Rcpp::NumericVector &lower, double tau,
+Rcpp::List gillespie_alg_entire(const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, const Rcpp::NumericMatrix &S, double tout,
+                            const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper, double tau,
                             std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> rates_function) {
-  std::cout<<"A";
   int n_spec = S.nrow(); // Number of species
   int n_react = S.ncol(); // Number of reactions
   double rtot, tcurr=0, tnext=0;
@@ -65,15 +63,15 @@ Rcpp::NumericMatrix gillespie_alg_entire(const Rcpp::NumericVector &x0, const Rc
   Rcpp::NumericVector r=rates_function(xcurr,theta);
   rtot=sum(r);
   tnext=tcurr-log(R::runif(0,1))/rtot; // add Exp(rtot)
-  double xttau;
   bool inS=TRUE;
-  Rcpp::List results;
+  Rcpp::NumericVector xttau_data(n_spec+1);
   Rcpp::NumericMatrix data(0,n_spec+1);
-  Rcpp::NumericVector box_status(2);
+  bool set_xttau = false;
   while (tnext<tout) {
     data = add_row_time(data,xcurr,tcurr);
     if (tcurr <= tout-tau && tout-tau < tnext){
-      xttau = xcurr[0];
+      xttau_data = clone(xcurr);
+      set_xttau = true;
     }
     tcurr=tnext;
     double u = R::runif(0,1);
@@ -96,10 +94,11 @@ Rcpp::NumericMatrix gillespie_alg_entire(const Rcpp::NumericVector &x0, const Rc
     rtot=sum(r);
     tnext=tcurr-log(R::runif(0,1))/rtot; // add Exp(rtot)
   }
-  box_status[0] = xttau;
-  box_status[1] = inS;
-
-  return data;
+  if(set_xttau == false){
+    xttau_data = xcurr;
+  }
+  Rcpp::List results = Rcpp::List::create(Rcpp::Named("xttau_data")=xttau_data, Rcpp::Named("inS")=inS, Rcpp::Named("data")=data);
+  return results;
 }
 
 Rcpp::NumericMatrix add_row_time(Rcpp::NumericMatrix data, Rcpp::NumericVector xcurr, double tnext){

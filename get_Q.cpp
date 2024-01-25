@@ -1,28 +1,28 @@
 #include "get_Q.h"
 
-void calculate_Q(Rcpp::NumericVector upper, Rcpp::NumericVector lower){
-    int num_param = upper.length();
-    int num_points = 1;
-    std::vector<int> prod(num_param);
-    int prev = 1;
-    for(int i=0;i<num_param;++i){
-        num_points*=(upper[i]-lower[i]+1);
-        prod[i]=(upper[i]-lower[i]+1)*prev;
-        prev = prod[i];
-        std::cout<<prod[i]<<std::endl;
-    }
-    for(int i=0;i<num_points;++i){
-        std::vector<int> coordinates(num_param);
-        prev = 1;
-        std::cout<<i<<": ";
-        for(int j=0;j<num_param;++j){
-            coordinates[j] = (i/prev) % prod[j]+lower[j];
-            prev = prod[j];
-            std::cout<<coordinates[j]<<" ";
-        }
-        std::cout<<std::endl;
-    }
-} 
+// void calculate_Q(Rcpp::NumericVector upper, Rcpp::NumericVector lower){
+//     int num_param = upper.length();
+//     int num_points = 1;
+//     std::vector<int> prod(num_param);
+//     int prev = 1;
+//     for(int i=0;i<num_param;++i){
+//         num_points*=(upper[i]-lower[i]+1);
+//         prod[i]=(upper[i]-lower[i]+1)*prev;
+//         prev = prod[i];
+//         std::cout<<prod[i]<<std::endl;
+//     }
+//     for(int i=0;i<num_points;++i){
+//         std::vector<int> coordinates(num_param);
+//         prev = 1;
+//         std::cout<<i<<": ";
+//         for(int j=0;j<num_param;++j){
+//             coordinates[j] = (i/prev) % prod[j]+lower[j];
+//             prev = prod[j];
+//             std::cout<<coordinates[j]<<" ";
+//         }
+//         std::cout<<std::endl;
+//     }
+// } 
 
 //[[Rcpp::export]]
 int state_to_index(
@@ -35,6 +35,9 @@ Rcpp::NumericVector upper){
     for(int i=0;i<num_param;++i){
         index += (state[i]-lower[i])*prev;
         prev *= (upper[i]-lower[i]+1);  
+    }
+    if(index>prev || index<0){
+        index = prev;
     }
     return(index);
 }
@@ -99,7 +102,8 @@ std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::Nume
                 temp_state[k] = state[k]+S(k,j);
             }
             if(inBox(temp_state,lower,upper)){
-                temp_index = state_to_index(temp_state,lower,upper);                    Q(i,temp_index) = Q(i,temp_index) + rate[j];
+                temp_index = state_to_index(temp_state,lower,upper);                    
+                Q(i,temp_index) = Q(i,temp_index) + rate[j];
             }
             else{
                 Q(i,coffin_index) = Q(i,coffin_index) + rate[j];
