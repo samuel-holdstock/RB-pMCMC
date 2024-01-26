@@ -14,7 +14,7 @@ upper = c(5,80)
 
 obs = c(0,13)
 obs_index = state_to_index(obs,lower,upper)
-tau = 40
+tau = 20
 
 data = sim_data("SIR_N",x, theta, total_time, lower, upper, 0.1)$data
 data = cbind(data,N - apply(data[,-1],1,sum))
@@ -24,6 +24,6 @@ add_box(lower,upper,total_time,tau,c("blue","darkgreen"))
 add_obs(total_time,obs,c("blue","darkgreen"))
 
 M = 1000
-RB("SIR_N",x,theta, total_time, lower, upper, tau,obs,M)
+print(RB("SIR_N",x,theta, total_time, lower, upper, tau,obs,M))
 
 

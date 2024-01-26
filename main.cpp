@@ -66,7 +66,8 @@ double get_estimate(const Rcpp::List &estimate, const Rcpp::NumericVector &lower
   for(int i=0;i<xt_data.length();++i){
     hitObs *= (xt_data[i]==obs[i]);
   }
-  return(hitObs*inS + P[state_to_index(xttau_data,lower,upper)]);
+  //std::cout<<"Hit xt:"<<hitObs<<", Not inS:"<<(1-inS)<<", Q:"<<P[state_to_index(xttau_data,lower,upper)]<<std::endl;
+  return(hitObs*(1-inS) + P[state_to_index(xttau_data,lower,upper)]);
 }
 
 //[[Rcpp::export]]
@@ -79,7 +80,7 @@ double RB(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVec
   arma::mat v(Q.nrow(),1);    
   int obs_index = state_to_index(obs,lower,upper);
   v[obs_index] = 1;
-  arma::mat P = vT_exp_Q(v,Q*tau,1e-15,false,true,false);
+  arma::mat P = vT_exp_Q(v,Q*tau,1e-20,false,true,false);
   Rcpp::List estimate;
   double estimator = 0;
   for(int i=0;i<M;++i){
@@ -87,6 +88,20 @@ double RB(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVec
     estimator += get_estimate(estimate,lower,upper,P,obs);
   }
   return(estimator/M);
+}
+
+//[[Rcpp::export]]
+Rcpp::NumericMatrix test(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, double tout,
+                  const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper, double tau,
+                  const Rcpp::NumericVector &obs, int M){
+  std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> rates_function = get_rate_function(str);
+  Rcpp::NumericMatrix S = get_S(str);
+  Rcpp::NumericMatrix Q = Rcpp::transpose(get_coffin_matrix(str,lower,upper,theta));
+  arma::mat v(Q.nrow(),1);    
+  int obs_index = state_to_index(obs,lower,upper);
+  v[obs_index] = 1;
+  arma::mat P = vT_exp_Q(v,Q*tau,1e-20,false,true,false);
+  return(S);
 }
 
 

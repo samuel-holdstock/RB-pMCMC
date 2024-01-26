@@ -35,11 +35,13 @@ Rcpp::List gillespie_alg(const Rcpp::NumericVector &x0, const Rcpp::NumericVecto
             break;
         }
     }
-    for(int i=0; i<n_spec; ++i){
-        if (lower[i] > xcurr[i] || xcurr[i] > upper[i]){
-            inS = false;
-            break;
-        }
+    if(tout-tau <= tcurr && tcurr<tout){
+      for(int i=0; i<n_spec; ++i){
+          if (lower[i] > xcurr[i] || xcurr[i] > upper[i]){
+              inS = FALSE;
+              break;
+          }
+      }
     }
     r=rates_function(xcurr,theta);
     rtot=sum(r);
@@ -83,12 +85,13 @@ Rcpp::List gillespie_alg_entire(const Rcpp::NumericVector &x0, const Rcpp::Numer
             break;
         }
     }
-    for(int i=0; i<n_spec; ++i){
-        inS = TRUE;
-        if (lower[i] > xcurr[i] || xcurr[i] > upper[i]){
-            inS = FALSE;
-            break;
-        }
+    if(tout-tau <= tcurr && tcurr<tout){
+      for(int i=0; i<n_spec; ++i){
+          if (lower[i] > xcurr[i] || xcurr[i] > upper[i]){
+              inS = FALSE;
+              break;
+          }
+      }
     }
     r=rates_function(xcurr,theta);
     rtot=sum(r);

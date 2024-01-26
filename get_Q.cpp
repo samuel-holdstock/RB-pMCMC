@@ -32,11 +32,19 @@ Rcpp::NumericVector upper){
     int num_param = state.length();
     int prev = 1;
     int index = 0;
+    bool coffin = false;
+    int state_diff = 0;
+    int box_diff = 0;
     for(int i=0;i<num_param;++i){
-        index += (state[i]-lower[i])*prev;
-        prev *= (upper[i]-lower[i]+1);  
+        state_diff = state[i]-lower[i];
+        box_diff = upper[i]-lower[i]+1;
+        index += (state_diff % (prev*box_diff)) * prev;
+        prev *= box_diff;
+        if(state_diff+1>box_diff||state_diff<0){
+            coffin = true;
+        }
     }
-    if(index>prev || index<0){
+    if(coffin){
         index = prev;
     }
     return(index);
@@ -50,10 +58,11 @@ Rcpp::NumericVector upper){
     int num_param = lower.length();
     int prev = 1;
     Rcpp::NumericVector coordinates(num_param);
+    int box_diff = 0;
     for(int i=0;i<num_param;++i){
-        int k = (prev*(upper[i]-lower[i]+1));
-        coordinates[i] = (index/prev) % k+lower[i];
-        prev*=(upper[i]-lower[i]+1);
+        box_diff = upper[i]-lower[i]+1;
+        coordinates[i] = (index % box_diff)+lower[i];
+        index /= box_diff;
     }
     return(coordinates);    
 }
