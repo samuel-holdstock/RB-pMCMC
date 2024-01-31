@@ -1,5 +1,7 @@
 #include "rates.h"
 
+ModelDictionary model_dict;
+
 ModelDictionary::ModelDictionary(){
   auto BDI_ptr = std::make_shared<BDI>();
   auto SIR_ptr = std::make_shared<SIR>();

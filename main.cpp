@@ -1,18 +1,6 @@
-#include <iostream>
-#include <random>
-#include <memory>
-
-#include "utils/rexpQ.h"
-
-#include <RcppArmadillo.h>
-// [[Rcpp::depends(RcppArmadillo)]]
-
-#include "get_Q.h"
-#include "gillespie.h"
-#include "rates.h"
+#include "main.h"
 
 std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> get_rate_function(std::string str){
-  ModelDictionary model_dict;
   auto model = model_dict.get_model(str);
   return [model](const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta){
     return model->get_rates(x,theta);
@@ -20,7 +8,6 @@ std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::Nume
 }
 //[[Rcpp::export]]
 Rcpp::NumericMatrix get_S(std::string str){
-  ModelDictionary model_dict;
   auto model = model_dict.get_model(str);
   return(model->S);
 }
@@ -90,19 +77,6 @@ double RB(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVec
   return(estimator/M);
 }
 
-//[[Rcpp::export]]
-Rcpp::NumericMatrix test(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, double tout,
-                  const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper, double tau,
-                  const Rcpp::NumericVector &obs, int M){
-  std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> rates_function = get_rate_function(str);
-  Rcpp::NumericMatrix S = get_S(str);
-  Rcpp::NumericMatrix Q = Rcpp::transpose(get_coffin_matrix(str,lower,upper,theta));
-  arma::mat v(Q.nrow(),1);    
-  int obs_index = state_to_index(obs,lower,upper);
-  v[obs_index] = 1;
-  arma::mat P = vT_exp_Q(v,Q*tau,1e-20,false,true,false);
-  return(S);
-}
 
 
 

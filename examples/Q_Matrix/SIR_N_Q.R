@@ -26,3 +26,9 @@ benchmarkQs = benchmark_exp_time(str,lower_mat,upper_mat,theta,S,obs_index,tau,T
 plot(benchmarkQ$times,main="Time to calculate Exp(Qtau)",xlab='Test case',ylab='Median (micro secs)',type='o',col='blue')
 lines(benchmarkQs$times,type='o',col='red')
 legend("topleft",legend=c("Dense","Sparse"),col=c("blue","red"),inset=0.05,lty=c(1,1))
+
+
+benchmarkQtau = benchmark_exp_time(str,lower_mat,upper_mat,theta,S,obs_index,tau*10,F)
+benchmarkQstau = benchmark_exp_time(str,lower_mat,upper_mat,theta,S,obs_index,tau*10,T)
+lines(benchmarkQtau$times,main="Time to calculate Exp(Qtau)",xlab='Test case',ylab='Median (micro secs)',type='o',col='blue')
+lines(benchmarkQstau$times,type='o',col='red')
