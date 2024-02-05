@@ -5,6 +5,7 @@ lower_list = list()
 upper_list = list()
 inc = c(1)
 n_inc = 61
+obs = 1000
 for(i in 0:(n_inc-1)){
   lower_list = append(lower_list,obs-inc*i)
   upper_list = append(upper_list,obs+inc*i)
@@ -29,26 +30,18 @@ plot.axes = {
 })
 dev.off()
 
-1/sqrt(2*pi*2)*exp(-1/2*(0.5-1)^2/2)
-dnorm(0.5,1,sqrt(2))
-dnorm((0.5-1),0,sqrt(2))
-dnorm((0.5-1)/(2),0,1)
-
-pnorm(0.5,1,sqrt(2))
-pnorm(0.5-1,0,sqrt(2))
-pnorm((0.5-1)/sqrt(2),0,1)
+microbenchmark(
+  {get_contour_brownian("BDI", theta, tout, taus, x, obs, lower_list, upper_list)},
+  {get_contour_brownian_fast("BDI", theta, tout, taus, x, obs, lower_list, upper_list)}
+)
 
 lower
 upper
 obs = 1005
 
-get_upper_brownian("BDI",theta,tout,tau,x,obs,lower,upper)
+
 get_variance_brownian("BDI",theta,tout,tau,x,obs,lower,upper)
 get_variance_brownian_fast("BDI",theta,tout,tau,x,obs,lower,upper)
-tau = 0.03
+tau = 0.01
 
-lower = 900
-upper = 1100
-
-2*(1-pt(0.213,9))
 

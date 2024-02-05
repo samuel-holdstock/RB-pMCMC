@@ -109,19 +109,19 @@ const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper){
   }
 
   double percentage_variance_reduction = p*(1-p);
-  double Q1 = 0;
-  double Q2 = 0;
-  double Q3 = 0;
+  // double Q1 = 0;
+  // double Q2 = 0;
+  // double Q3 = 0;
   for(int i=0;i<total_points;++i){
-    Q1 += a[i]*b[i]*(1-b[i]);
-    Q2 += a[i]*alpha[i]*(1-alpha[i]);
-    Q3 += a[i]*beta[i]*(1-beta[i]);
+    // Q1 += a[i]*b[i]*(1-b[i]);
+    // Q2 += a[i]*alpha[i]*(1-alpha[i]);
+    // Q3 += a[i]*beta[i]*(1-beta[i]);
     // std::cout<<"a:"<<a[i]<<", b:"<<b[i]<<", delta:"<<delta[i]<<std::endl;
     // std::cout<<"alpha:"<<alpha[i]<<", beta: "<<beta[i]<<std::endl;
     percentage_variance_reduction -= (a[i]*b[i]*(1-b[i]) - a[i]*delta[i]*(1-delta[i]));
   }
-  double pvr = (Q1 - Q2 - Q3);
-  std::cout<<"PVR:"<<pvr<<", Q1: "<<Q1<<", Q2:"<<Q2<<", Q3:"<<Q3<<std::endl;
+  //double pvr = 1 - (Q1 - Q2 - Q3)/(p*(1-p));
+  //std::cout<<"PVR:"<<pvr<<", Q1: "<<Q1<<", Q2:"<<Q2<<", Q3:"<<Q3<<", p:"<<p<<std::endl;
   percentage_variance_reduction = percentage_variance_reduction/(p*(1-p));
   if(percentage_variance_reduction>1){
     return(1);
@@ -154,53 +154,6 @@ const Rcpp::List &lower_list, const Rcpp::List &upper_list){
 }
 
 //[[Rcpp::export]]
-Rcpp::NumericVector get_upper_brownian(const std::string &model_name, const Rcpp::NumericVector &thetas, 
-const double &tout, const double &tau, const Rcpp::NumericVector &start, const Rcpp::NumericVector &target, 
-const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper){
-  auto model = model_dict.get_model(model_name);
-  Rcpp::NumericMatrix S = model->S;
-  Rcpp::NumericVector h = model->get_rates(start,thetas);  
-  int number_reactions = S.ncol();
-  int number_species = S.nrow();
-  Rcpp::NumericVector mu(number_species);
-  Rcpp::NumericVector sig(number_species);
-  for(int i=0;i<number_species;++i){
-    for(int j=0;j<number_reactions;++j){
-      mu(i) += S(i,j)*h[j];
-      sig(i) += S(i,j)*h[j]*S(i,j);
-    }
-    sig(i) = sqrt(sig(i));
-  }  
-  int total_points = 1;
-  for(int i=0;i<number_species;++i){
-      total_points *= (upper[i]-lower[i]+1);
-  }
-  Rcpp::NumericVector a(total_points);
-  Rcpp::NumericVector alpha(total_points);
-  Rcpp::NumericVector beta(total_points);
-  a = a+1;
-  Rcpp::NumericVector state;
-  double alpha_variance = 0;
-  double beta_variance = 0;
-  int state_component;
-  for(int i=0;i<total_points;++i){
-    state = index_to_state(i,lower,upper);
-    for(int j=0;j<number_species;++j){
-      a[i] *= get_probability_hit(start[j],state[j],tout-tau,mu[j],sig[j]);
-      alpha[i] += get_above_maximum_sigma_wt(upper[j]-state[j]+1,mu[j],sig[j],target[j]-state[j],tau);
-      beta[i] += get_below_minimum_sigma_wt(-(state[j]-lower[j]+1),mu[j],sig[j],target[j]-state[j],tau);
-    }
-  } 
-
-  for(int i=0;i<total_points;++i){
-    alpha_variance += a[i]*alpha[i]*(1-alpha[i]);
-    beta_variance += a[i]*beta[i]*(1-beta[i]);
-  }
-  Rcpp::NumericVector results = {alpha_variance, beta_variance};
-  return(results);
-}
-
-//[[Rcpp::export]]
 double get_variance_brownian_fast(const std::string &model_name, const Rcpp::NumericVector &thetas, 
 const double &tout, const double &tau, const Rcpp::NumericVector &start, const Rcpp::NumericVector &target, 
 const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper){
@@ -222,8 +175,10 @@ const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper){
     sig(i) = sqrt(sig(i));
   }  
   int total_points = 1;
+  double p = 1;
   for(int i=0;i<number_species;++i){
-      total_points *= (upper[i]-lower[i]+1);
+    total_points *= (upper[i]-lower[i]+1);
+    p *= get_probability_hit(start[i],target[i],tout,mu[i],sig[i]);
   }
   double percentage_variance_reduction;
   double s = tout - tau;
@@ -246,9 +201,9 @@ const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper){
   double Q3_b = pvr8 + pvr9;
   double Q2 = Q2_a - Q2_b;
   double Q3 = Q3_a - Q3_b;
-  std::cout<<"Q1:"<<Q1<<", Q2:"<<Q2<<", Q3:"<<Q3<<std::endl;
   //std::cout<<"a:"<<a_<<", b:"<<b_<<std::endl;
-  percentage_variance_reduction = (Q2 + Q3)/Q1;
+  percentage_variance_reduction = 1 - (Q1 - Q2 - Q3)/(p*(1-p));
+  //std::cout<<"pvr:"<<percentage_variance_reduction<<", Q1:"<<Q1<<", Q2:"<<Q2<<", Q3:"<<Q3<<", p:"<<p<<std::endl;
   if(percentage_variance_reduction>1){
     percentage_variance_reduction = 1;
   }
@@ -278,3 +233,4 @@ const Rcpp::List &lower_list, const Rcpp::List &upper_list){
   }
   return(z);
 }
+

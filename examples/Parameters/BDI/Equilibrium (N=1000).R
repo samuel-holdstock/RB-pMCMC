@@ -7,3 +7,7 @@ theta = c(lambda,mu,gamma)
 x = c(P)
 
 obs = c(1000)
+
+
+get_mu("BDI",x,theta)
+get_var("BDI",x,theta)
