@@ -35,7 +35,7 @@ Rcpp::NumericVector upper){
     bool coffin = false;
     int state_diff = 0;
     int box_diff = 0;
-    for(int i=0;i<num_param;++i){
+    for(int i=num_param-1;0<=i;--i){
         state_diff = state[i]-lower[i];
         box_diff = upper[i]-lower[i]+1;
         index += (state_diff % (prev*box_diff)) * prev;
@@ -59,7 +59,7 @@ Rcpp::NumericVector upper){
     int prev = 1;
     Rcpp::NumericVector coordinates(num_param);
     int box_diff = 0;
-    for(int i=0;i<num_param;++i){
+    for(int i=num_param-1;0<=i;--i){
         box_diff = upper[i]-lower[i]+1;
         coordinates[i] = (index % box_diff)+lower[i];
         index /= box_diff;

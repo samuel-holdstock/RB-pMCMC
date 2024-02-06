@@ -12,7 +12,7 @@ for(i in 0:(n_inc-1)){
 }
 taus = seq(0,1,by=0.01)
 
-pdf("Test.pdf")
+pdf("variance_contours.pdf")
 contour_data = get_contour_brownian("BDI", theta, tout, taus, x, obs, lower_list, upper_list)
 filled.contour(contour_data,
 plot.axes = {
@@ -30,18 +30,29 @@ plot.axes = {
 })
 dev.off()
 
-microbenchmark(
-  {get_contour_brownian("BDI", theta, tout, taus, x, obs, lower_list, upper_list)},
-  {get_contour_brownian_fast("BDI", theta, tout, taus, x, obs, lower_list, upper_list)}
-)
+# microbenchmark(
+#   {get_contour_brownian("BDI", theta, tout, taus, x, obs, lower_list, upper_list)},
+#   {get_contour_brownian_fast("BDI", theta, tout, taus, x, obs, lower_list, upper_list)},unit='micro'
+# )
 
-lower
-upper
-obs = 1005
-
+lower = c(990)
+upper = c(1010)
 
 get_variance_brownian("BDI",theta,tout,tau,x,obs,lower,upper)
 get_variance_brownian_fast("BDI",theta,tout,tau,x,obs,lower,upper)
-tau = 0.01
 
+mu = get_mu("BDI",x,theta)
+var = get_var("BDI",x,theta)
+get_Q1_brownian_fast("BDI",theta,tout,tau,x,obs,mu,var)
+get_Q2_brownian_fast("BDI",theta,tout,tau,x,obs,1009,mu,var)
+get_Q3_brownian_fast("BDI",theta,tout,tau,x,obs,991,mu,var)
 
+get_box_brownian_fast("BDI",theta,tout,tau,x,obs,0.9)
+contour_data = get_contour_brownian_fast("BDI", theta, tout, taus, x, obs, lower_list, upper_list)
+filled.contour(contour_data,
+plot.axes = {
+  axis(1)
+  axis(2)
+  contour(contour_data,add=T,lwd=2,levels=c(seq(0,0.9,by=0.1),seq(0.91,1,by=0.01)))
+  points(0,0)
+})

@@ -12,6 +12,7 @@ plot_chain(data_chain,c("Population"),c("blue"),ylim=c(975,1050))
 add_box(lower,upper,tout,tau,"blue")
 add_obs(tout,obs,"blue")
 
-
-get_variance_brownian("BDI", theta, tout, 0.1, x, obs, 1000,1000)
-
+obs = 1015
+plot_chain(data_chain,c("Population"),c("blue"),ylim=c(975,1050))
+add_obs(tout,obs,"blue")
+add_box_goal("BDI",0.9,theta,x,obs,tout,0.05,"blue")

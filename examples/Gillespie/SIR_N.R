@@ -1,4 +1,4 @@
-source("examples/Parameters/SIR_N/Equilibrium.R")
+source("examples/Parameters/SIR_N/Equilibrium (N=1000).R")
 lower = c(0,0)
 upper = c(5,80)
 

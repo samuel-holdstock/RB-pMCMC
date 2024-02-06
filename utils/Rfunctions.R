@@ -29,6 +29,13 @@ add_box = function(lower,upper,tout,tau,colours){
     }
 }
 
+add_box_goal = function(model_name,goal,theta,x,obs,tout,tau,colours){
+    results = get_box_brownian_fast(model_name,theta,tout,tau,x,obs,goal)
+    lower = results$lower
+    upper = results$upper
+    lines(c(tout,tout-tau,tout-tau,tout),c(upper,upper,lower,lower),col=colours,lwd=1.5)
+}
+
 add_obs = function(tout,obs,colours){
     npoints = length(obs)
     for(i in 1:npoints){

@@ -101,6 +101,7 @@ const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper){
     state = index_to_state(i,lower,upper);
     for(int j=0;j<number_species;++j){
       a[i] *= get_probability_hit(start[j],state[j],tout-tau,mu[j],sig[j]);
+      // std::cout<<"start:"<<start[j]<<", state:"<<state[j]<<std::endl;
       b[i] *= get_probability_hit(state[j],target[j],tau,mu[j],sig[j]);
       alpha[i] = get_above_maximum_sigma_wt(upper[j]-state[j]+1,mu[j],sig[j],target[j]-state[j],tau);
       beta[i] = get_below_minimum_sigma_wt(-(state[j]-lower[j]+1),mu[j],sig[j],target[j]-state[j],tau);
@@ -182,25 +183,35 @@ const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper){
   }
   double percentage_variance_reduction;
   double s = tout - tau;
-  double k = std::max(upper[0],target[0]);
-  double v = std::min(lower[0],target[0]);
-  double var = sig[0]*sig[0];
-  double pvr1 = R::dnorm(target[0],start[0]+mu[0]*tout,sqrt(var*tout),0) - 1/sqrt(4*M_PI*var*tau)*R::dnorm(target[0],start[0]+mu[0]*tout,sqrt(var*(s+tau/2)),0);
-  double pvr2 = R::dnorm(2*k-target[0],start[0]+mu[0]*tout,sqrt(var*tout),0)*exp(-2*(k-target[0])*mu[0]/var)*R::pnorm(k*tout-start[0]*tau,s*(2*k-target[0]),sqrt(tout*var*s*tau),1,0);
-  double pvr3 = R::dnorm(target[0],start[0]+mu[0]*tout,sqrt(var*tout),0)*(1-R::pnorm((k*tout-start[0]*tau-target[0]*s)/sqrt(tout*var*s*tau),0,1,1,0));
-  double pvr4 = 1/sqrt(4*M_PI*var*tau)*R::dnorm(2*k-target[0],start[0]+mu[0]*tout,sqrt(var*(s+tau/2)),0)*exp(-2*(k-target[0])*mu[0]/var)*R::pnorm(k*(s+tau/2),(start[0]+mu[0]*s)*tau/2 + (2*k-target[0]-mu[0]*tau)*s,sqrt(var*s*tau/2*(s+tau/2)),1,0);
-  double pvr5 = 1/sqrt(4*M_PI*var*tau)*R::dnorm(target[0],start[0]+mu[0]*tout,sqrt(var*(s+tau/2)),0)*(1-R::pnorm(k*(s+tau/2),(start[0]+mu[0]*s)*tau/2+(target[0]-mu[0]*tau)*s,sqrt((var*s*tau/2)*(s+tau/2)),1,0));
-  double pvr6 = R::dnorm(2*v-target[0],start[0]+mu[0]*tout,sqrt(var*tout),0)*exp(-2*(v-target[0])*mu[0]/var)*(1-R::pnorm(v*tout-start[0]*tau,s*(2*v-target[0]),sqrt(tout*var*s*tau),1,0));
-  double pvr7 = R::dnorm(target[0],start[0]+mu[0]*tout,sqrt(var*tout),0)*R::pnorm(v*tout-start[0]*tau-target[0]*s,0,sqrt(tout*var*s*tau),1,0);
-  double pvr8 = 1/sqrt(4*M_PI*var*tau)*R::dnorm(2*v-target[0],start[0]+mu[0]*tout,sqrt(var*(s+tau/2)),0)*exp(-2*(v-target[0])*mu[0]/var)*(1-R::pnorm(v*(s+tau/2),(start[0]+mu[0]*s)*tau/2+(2*v-target[0]-mu[0]*tau)*s,sqrt((var*s*tau/2)*(s+tau/2)),1,0));
-  double pvr9 = 1/sqrt(4*M_PI*var*tau)*R::dnorm(target[0],start[0]+mu[0]*tout,sqrt(var*(s+tau/2)),0)*R::pnorm(v*(s+tau/2),(start[0]+mu[0]*s)*tau/2+(target[0]-mu[0]*tau)*s,sqrt((var*s*tau/2)*(s+tau/2)),1,0);
-  double Q1 = pvr1;
-  double Q2_a = pvr2 + pvr3;
-  double Q2_b = pvr4 + pvr5;
-  double Q3_a = pvr6 + pvr7;
-  double Q3_b = pvr8 + pvr9;
-  double Q2 = Q2_a - Q2_b;
-  double Q3 = Q3_a - Q3_b;
+  double k,v;
+  double var;
+  double pvr1,pvr2,pvr3,pvr4,pvr5,pvr6,pvr7,pvr8,pvr9;
+  double Q1 = 1;
+  double Q2_a,Q2_b;
+  double Q2 = 0;
+  double Q3_a,Q3_b;
+  double Q3 = 0;
+  for(int i=0;i<number_species;++i){
+    k = std::max(upper[i],target[i]);
+    v = std::min(lower[i],target[i]);
+    var = sig[i]*sig[i];
+    pvr1 = R::dnorm(target[i],start[i]+mu[i]*tout,sqrt(var*tout),0) - 1/sqrt(4*M_PI*var*tau)*R::dnorm(target[i],start[i]+mu[i]*tout,sqrt(var*(s+tau/2)),0);
+    pvr2 = R::dnorm(2*k-target[i],start[i]+mu[i]*tout,sqrt(var*tout),0)*exp(-2*(k-target[i])*mu[i]/var)*R::pnorm(k*tout-start[i]*tau,s*(2*k-target[i]),sqrt(tout*var*s*tau),1,0);
+    pvr3 = R::dnorm(target[i],start[i]+mu[i]*tout,sqrt(var*tout),0)*(1-R::pnorm((k*tout-start[i]*tau-target[i]*s)/sqrt(tout*var*s*tau),0,1,1,0));
+    pvr4 = 1/sqrt(4*M_PI*var*tau)*R::dnorm(2*k-target[i],start[i]+mu[i]*tout,sqrt(var*(s+tau/2)),0)*exp(-2*(k-target[i])*mu[i]/var)*R::pnorm(k*(s+tau/2),(start[i]+mu[i]*s)*tau/2 + (2*k-target[i]-mu[i]*tau)*s,sqrt(var*s*tau/2*(s+tau/2)),1,0);
+    pvr5 = 1/sqrt(4*M_PI*var*tau)*R::dnorm(target[i],start[i]+mu[i]*tout,sqrt(var*(s+tau/2)),0)*(1-R::pnorm(k*(s+tau/2),(start[i]+mu[i]*s)*tau/2+(target[i]-mu[i]*tau)*s,sqrt((var*s*tau/2)*(s+tau/2)),1,0));
+    pvr6 = R::dnorm(2*v-target[i],start[i]+mu[i]*tout,sqrt(var*tout),0)*exp(-2*(v-target[i])*mu[i]/var)*(1-R::pnorm(v*tout-start[i]*tau,s*(2*v-target[i]),sqrt(tout*var*s*tau),1,0));
+    pvr7 = R::dnorm(target[i],start[i]+mu[i]*tout,sqrt(var*tout),0)*R::pnorm(v*tout-start[i]*tau-target[i]*s,0,sqrt(tout*var*s*tau),1,0);
+    pvr8 = 1/sqrt(4*M_PI*var*tau)*R::dnorm(2*v-target[i],start[i]+mu[i]*tout,sqrt(var*(s+tau/2)),0)*exp(-2*(v-target[i])*mu[i]/var)*(1-R::pnorm(v*(s+tau/2),(start[i]+mu[i]*s)*tau/2+(2*v-target[i]-mu[i]*tau)*s,sqrt((var*s*tau/2)*(s+tau/2)),1,0));
+    pvr9 = 1/sqrt(4*M_PI*var*tau)*R::dnorm(target[i],start[i]+mu[i]*tout,sqrt(var*(s+tau/2)),0)*R::pnorm(v*(s+tau/2),(start[i]+mu[i]*s)*tau/2+(target[i]-mu[i]*tau)*s,sqrt((var*s*tau/2)*(s+tau/2)),1,0);
+    Q1 *= pvr1;
+    Q2_a = pvr2 + pvr3;
+    Q2_b = pvr4 + pvr5;
+    Q3_a = pvr6 + pvr7;
+    Q3_b = pvr8 + pvr9;
+    Q2 += Q2_a - Q2_b;
+    Q3 += Q3_a - Q3_b;
+  }
   //std::cout<<"a:"<<a_<<", b:"<<b_<<std::endl;
   percentage_variance_reduction = 1 - (Q1 - Q2 - Q3)/(p*(1-p));
   //std::cout<<"pvr:"<<percentage_variance_reduction<<", Q1:"<<Q1<<", Q2:"<<Q2<<", Q3:"<<Q3<<", p:"<<p<<std::endl;
@@ -233,4 +244,118 @@ const Rcpp::List &lower_list, const Rcpp::List &upper_list){
   }
   return(z);
 }
+//[[Rcpp::export]]
+double get_Q1_brownian_fast(const std::string &model_name, const Rcpp::NumericVector &thetas, 
+const double &tout, const double &tau, const Rcpp::NumericVector &start, const Rcpp::NumericVector &target, 
+const Rcpp::NumericVector &mu, const Rcpp::NumericVector &var){
+  double s = tout - tau;
+  double pvr1;
+  double Q1 = 1;
+  int number_species = start.size();
+  for(int i=0;i<number_species;++i){
+    pvr1 = R::dnorm(target[i],start[i]+mu[i]*tout,sqrt(var[i]*tout),0) - 1/sqrt(4*M_PI*var[i]*tau)*R::dnorm(target[i],start[i]+mu[i]*tout,sqrt(var[i]*(s+tau/2)),0);
+    Q1 *= pvr1;
+  }
+  return(Q1);
+}
 
+//[[Rcpp::export]]
+double get_Q2_brownian_fast(const std::string &model_name, const Rcpp::NumericVector &thetas, 
+const double &tout, const double &tau, const Rcpp::NumericVector &start, const Rcpp::NumericVector &target,
+const Rcpp::NumericVector &upper, const Rcpp::NumericVector &mu, const Rcpp::NumericVector &var){
+  double s = tout - tau;
+  double k;
+  double pvr2,pvr3,pvr4,pvr5;
+  double Q2_a,Q2_b;
+  double Q2 = 0;
+  int number_species = start.size();
+  for(int i=0;i<number_species;++i){
+    k = std::max(upper[i],target[i]);
+    pvr2 = R::dnorm(2*k-target[i],start[i]+mu[i]*tout,sqrt(var[i]*tout),0)*exp(-2*(k-target[i])*mu[i]/var[i])*R::pnorm(k*tout-start[i]*tau,s*(2*k-target[i]),sqrt(tout*var[i]*s*tau),1,0);
+    pvr3 = R::dnorm(target[i],start[i]+mu[i]*tout,sqrt(var[i]*tout),0)*(1-R::pnorm((k*tout-start[i]*tau-target[i]*s)/sqrt(tout*var[i]*s*tau),0,1,1,0));
+    pvr4 = 1/sqrt(4*M_PI*var[i]*tau)*R::dnorm(2*k-target[i],start[i]+mu[i]*tout,sqrt(var[i]*(s+tau/2)),0)*exp(-2*(k-target[i])*mu[i]/var[i])*R::pnorm(k*(s+tau/2),(start[i]+mu[i]*s)*tau/2 + (2*k-target[i]-mu[i]*tau)*s,sqrt(var[i]*s*tau/2*(s+tau/2)),1,0);
+    pvr5 = 1/sqrt(4*M_PI*var[i]*tau)*R::dnorm(target[i],start[i]+mu[i]*tout,sqrt(var[i]*(s+tau/2)),0)*(1-R::pnorm(k*(s+tau/2),(start[i]+mu[i]*s)*tau/2+(target[i]-mu[i]*tau)*s,sqrt((var[i]*s*tau/2)*(s+tau/2)),1,0));
+    Q2_a = pvr2 + pvr3;
+    Q2_b = pvr4 + pvr5;
+    Q2 += Q2_a - Q2_b;
+  }
+  return(Q2);
+}
+
+//[[Rcpp::export]]
+double get_Q3_brownian_fast(const std::string &model_name, const Rcpp::NumericVector &thetas, 
+const double &tout, const double &tau, const Rcpp::NumericVector &start, const Rcpp::NumericVector &target, 
+const Rcpp::NumericVector &lower, const Rcpp::NumericVector &mu, const Rcpp::NumericVector &var){
+  double s = tout - tau;
+  double v;
+  double pvr6,pvr7,pvr8,pvr9;
+  double Q3_a,Q3_b;
+  double Q3 = 0;
+  int number_species = start.size();
+  for(int i=0;i<number_species;++i){
+    v = std::min(lower[i],target[i]);
+    pvr6 = R::dnorm(2*v-target[i],start[i]+mu[i]*tout,sqrt(var[i]*tout),0)*exp(-2*(v-target[i])*mu[i]/var[i])*(1-R::pnorm(v*tout-start[i]*tau,s*(2*v-target[i]),sqrt(tout*var[i]*s*tau),1,0));
+    pvr7 = R::dnorm(target[i],start[i]+mu[i]*tout,sqrt(var[i]*tout),0)*R::pnorm(v*tout-start[i]*tau-target[i]*s,0,sqrt(tout*var[i]*s*tau),1,0);
+    pvr8 = 1/sqrt(4*M_PI*var[i]*tau)*R::dnorm(2*v-target[i],start[i]+mu[i]*tout,sqrt(var[i]*(s+tau/2)),0)*exp(-2*(v-target[i])*mu[i]/var[i])*(1-R::pnorm(v*(s+tau/2),(start[i]+mu[i]*s)*tau/2+(2*v-target[i]-mu[i]*tau)*s,sqrt((var[i]*s*tau/2)*(s+tau/2)),1,0));
+    pvr9 = 1/sqrt(4*M_PI*var[i]*tau)*R::dnorm(target[i],start[i]+mu[i]*tout,sqrt(var[i]*(s+tau/2)),0)*R::pnorm(v*(s+tau/2),(start[i]+mu[i]*s)*tau/2+(target[i]-mu[i]*tau)*s,sqrt((var[i]*s*tau/2)*(s+tau/2)),1,0);
+    Q3_a = pvr6 + pvr7;
+    Q3_b = pvr8 + pvr9;
+    Q3 += Q3_a - Q3_b;
+  }
+  return(Q3);
+}
+
+//[[Rcpp::export]]
+Rcpp::DataFrame get_box_brownian_fast(const std::string &model_name, const Rcpp::NumericVector &thetas, 
+const double &tout, const double &tau, const Rcpp::NumericVector &start, const Rcpp::NumericVector &target,
+const double &pvr_goal){
+  Rcpp::NumericVector mu = get_mu(model_name,start,thetas);
+  Rcpp::NumericVector var = get_var(model_name,start,thetas);
+  Rcpp::NumericVector lower = clone(target);
+  Rcpp::NumericVector upper = clone(target);
+  double p = 1;
+  int number_species = start.size();
+  for(int i=0;i<number_species;++i){
+    p *= get_probability_hit(start[i],target[i],tout,mu[i],sqrt(var[i]));
+  }
+  double Q1 = get_Q1_brownian_fast(model_name,thetas,tout,tau,start,target,mu,var);
+  double Q2 = 0;
+  double Q3 = 0;
+  //std::cout<<"Upper:";
+  //double goal = (Q1 - pvr_goal*p*(1-p))/2;
+  double goal = Q1*(1 - pvr_goal)/2;
+  
+  int counter = 0;
+  while(true){
+    //std::cout<<upper[0]<<", ";
+    Q2 = get_Q2_brownian_fast(model_name,thetas,tout,tau,start,target,upper,mu,var);
+    if(goal>=Q2){
+      break;
+    }
+    upper[0] += 1;
+    if((counter+=1)>100){
+      std::cout<<"ERROR";
+      break;
+    }
+  }
+  counter = 0;
+  //std::cout<<std::endl;
+  //std::cout<<"Lower:";
+  while(true){
+    //std::cout<<lower[0]<<", ";
+    Q3 = get_Q3_brownian_fast(model_name,thetas,tout,tau,start,target,lower,mu,var);
+    if(goal>=Q3){
+      break;
+    }
+    lower[0] -= 1;
+    if((counter+=1)>100){
+      std::cout<<"ERROR";
+      break;
+    }
+  }
+  //std::cout<<std::endl;
+  //std::cout<<"Q1:"<<Q1<<", Q2:"<<Q2<<", Q3:"<<Q3<<std::endl;
+  //Rcpp::List results = Rcpp::List::create(Rcpp::Named("Q1")=Q1,Rcpp::Named("Q2")=Q2,Rcpp::Named("Q3")=Q3);
+  Rcpp::DataFrame results = Rcpp::DataFrame::create(Rcpp::Named("lower")=lower,Rcpp::Named("upper")=upper);
+  return(results);
+}
