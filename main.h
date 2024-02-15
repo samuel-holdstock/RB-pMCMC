@@ -10,6 +10,7 @@
 #include "gillespie.h"
 #include "rates.h"
 #include "brownian.h"
+#include "exact.h"
 
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]

@@ -52,6 +52,12 @@ class SEIR_N: public Model{
     Rcpp::NumericVector get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta) override;
     SEIR_N();
 };
+class BDI_2: public Model{
+  public:
+    Rcpp::NumericVector get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta) override;
+    BDI_2();
+};
+
 extern ModelDictionary model_dict;
 
 #endif

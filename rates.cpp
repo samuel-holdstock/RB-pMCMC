@@ -8,12 +8,14 @@ ModelDictionary::ModelDictionary(){
   auto SIR_N_ptr = std::make_shared<SIR_N>();
   auto SEIR_ptr = std::make_shared<SEIR>();
   auto SEIR_N_ptr = std::make_shared<SEIR_N>();
+  auto BDI_2_ptr = std::make_shared<BDI_2>();
   
   add_model(BDI_ptr);
   add_model(SIR_ptr);
   add_model(SIR_N_ptr);
   add_model(SEIR_ptr);
   add_model(SEIR_N_ptr);
+  add_model(BDI_2_ptr);
 }
 void ModelDictionary::add_model(std::shared_ptr<Model> model_ptr){
   model_dictionary[model_ptr->name] = model_ptr;
@@ -142,3 +144,19 @@ SEIR_N::SEIR_N(){
   S = populate_matrix(values);
 }
 
+Rcpp::NumericVector BDI_2::get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta){
+  double P=x[0]; // Define species
+  double gamma=theta[0], epsilon=theta[1]; // Define parameters
+  Rcpp::NumericVector r(2); // Number of reactions 
+  r[0]=gamma; // Calculate rates
+  r[1]=epsilon;
+  return r; // Return vector of rates
+}
+BDI_2::BDI_2(){
+  name = "BDI_2";
+  num_reactions = 2;
+  num_states = 1;
+  num_params = 2;
+  values = {1,-1};
+  S = populate_matrix(values);
+}

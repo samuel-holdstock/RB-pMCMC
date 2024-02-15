@@ -24,6 +24,12 @@ Rcpp::List gillespie_alg(const Rcpp::NumericVector &x0, const Rcpp::NumericVecto
     if (tcurr <= tout-tau && tout-tau < tnext){
       xttau_data = clone(xcurr);
       set_xttau  = true;
+      for(int i=0; i<n_spec; ++i){
+          if (lower[i] > xcurr[i] || xcurr[i] > upper[i]){
+              inS = FALSE;
+              break;
+          }
+      }
     }
     tcurr=tnext;
     double u = R::runif(0,1);
@@ -35,7 +41,7 @@ Rcpp::List gillespie_alg(const Rcpp::NumericVector &x0, const Rcpp::NumericVecto
             break;
         }
     }
-    if(tout-tau <= tcurr && tcurr<tout){
+    if(tout-tau <= tcurr){
       for(int i=0; i<n_spec; ++i){
           if (lower[i] > xcurr[i] || xcurr[i] > upper[i]){
               inS = FALSE;
@@ -49,6 +55,12 @@ Rcpp::List gillespie_alg(const Rcpp::NumericVector &x0, const Rcpp::NumericVecto
   }
   if(set_xttau == false){
     xttau_data = xcurr;
+    for(int i=0; i<n_spec; ++i){
+      if (lower[i] > xcurr[i] || xcurr[i] > upper[i]){
+          inS = FALSE;
+          break;
+      }
+    }
   }
   xt_data = xcurr;
   Rcpp::List results = Rcpp::List::create(Rcpp::Named("xttau_data")=xttau_data, Rcpp::Named("inS")=inS, Rcpp::Named("xt_data")=xt_data);
@@ -69,11 +81,18 @@ Rcpp::List gillespie_alg_entire(const Rcpp::NumericVector &x0, const Rcpp::Numer
   Rcpp::NumericVector xttau_data(n_spec+1);
   Rcpp::NumericMatrix data(0,n_spec+1);
   bool set_xttau = false;
+
+  data = add_row_time(data,xcurr,tcurr);
   while (tnext<tout) {
-    data = add_row_time(data,xcurr,tcurr);
     if (tcurr <= tout-tau && tout-tau < tnext){
       xttau_data = clone(xcurr);
       set_xttau = true;
+      for(int i=0; i<n_spec; ++i){
+          if (lower[i] > xcurr[i] || xcurr[i] > upper[i]){
+              inS = FALSE;
+              break;
+          }
+      }
     }
     tcurr=tnext;
     double u = R::runif(0,1);
@@ -85,7 +104,8 @@ Rcpp::List gillespie_alg_entire(const Rcpp::NumericVector &x0, const Rcpp::Numer
             break;
         }
     }
-    if(tout-tau <= tcurr && tcurr<tout){
+    data = add_row_time(data,xcurr,tcurr);
+    if(tout-tau <= tcurr){
       for(int i=0; i<n_spec; ++i){
           if (lower[i] > xcurr[i] || xcurr[i] > upper[i]){
               inS = FALSE;
@@ -99,8 +119,14 @@ Rcpp::List gillespie_alg_entire(const Rcpp::NumericVector &x0, const Rcpp::Numer
   }
   if(set_xttau == false){
     xttau_data = xcurr;
+    for(int i=0; i<n_spec; ++i){
+      if (lower[i] > xcurr[i] || xcurr[i] > upper[i]){
+          inS = FALSE;
+          break;
+      }
+    }
   }
-  Rcpp::List results = Rcpp::List::create(Rcpp::Named("xttau_data")=xttau_data, Rcpp::Named("inS")=inS, Rcpp::Named("data")=data);
+  Rcpp::List results = Rcpp::List::create(Rcpp::Named("xttau_data")=xttau_data, Rcpp::Named("inS")=inS, Rcpp::Named("data")=data, Rcpp::Named("xt_data")=xcurr);
   return results;
 }
 

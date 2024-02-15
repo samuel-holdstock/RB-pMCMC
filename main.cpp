@@ -45,6 +45,7 @@ Rcpp::NumericVector theta){
   return(Qmat(lower,upper,theta,S,rates_function));
 }
 
+//[[Rcpp::export]]
 double get_estimate(const Rcpp::List &estimate, const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper, const arma::mat &P, const Rcpp::NumericVector &obs){  
   int hitObs = 1;
   Rcpp::NumericVector xt_data = estimate["xt_data"];
@@ -54,7 +55,9 @@ double get_estimate(const Rcpp::List &estimate, const Rcpp::NumericVector &lower
     hitObs *= (xt_data[i]==obs[i]);
   }
   //std::cout<<"Hit xt:"<<hitObs<<", Not inS:"<<(1-inS)<<", Q:"<<P[state_to_index(xttau_data,lower,upper)]<<std::endl;
-  return(hitObs*(1-inS) + P[state_to_index(xttau_data,lower,upper)]);
+  double est = hitObs*(1-inS) + P[state_to_index(xttau_data,lower,upper)];
+  //std::cout<<est<<std::endl;
+  return(est);
 }
 
 //[[Rcpp::export]]
@@ -76,7 +79,6 @@ double RB(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVec
   }
   return(estimator/M);
 }
-
 
 
 

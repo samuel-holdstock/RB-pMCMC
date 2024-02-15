@@ -25,4 +25,10 @@ Rcpp::NumericMatrix S,
 std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> rates_function
 );
 
+bool inBox(
+Rcpp::NumericVector state,
+Rcpp::NumericVector lower,
+Rcpp::NumericVector upper
+);
+
 #endif

@@ -5,6 +5,7 @@ double get_above_maximum_wt(double x,double mu, double wt, double tout){
   if(tout<=1e-15){
     return(0);
   }
+  x = std::max(std::max(wt,0.0),x);
   double probability = std::sqrt(1/(2*M_PI*tout))*std::exp(mu*wt - std::pow(mu,2)*tout/2 - (std::pow(2*x-wt,2))/(2*tout));
   //std::cout<<"x:"<<x<<", mu:"<<mu<<", wt:"<<wt<<", tout:"<<tout<<std::endl;
   return(probability);
@@ -103,8 +104,8 @@ const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper){
       a[i] *= get_probability_hit(start[j],state[j],tout-tau,mu[j],sig[j]);
       // std::cout<<"start:"<<start[j]<<", state:"<<state[j]<<std::endl;
       b[i] *= get_probability_hit(state[j],target[j],tau,mu[j],sig[j]);
-      alpha[i] = get_above_maximum_sigma_wt(upper[j]-state[j]+1,mu[j],sig[j],target[j]-state[j],tau);
-      beta[i] = get_below_minimum_sigma_wt(-(state[j]-lower[j]+1),mu[j],sig[j],target[j]-state[j],tau);
+      alpha[i] = get_above_maximum_sigma_wt(upper[j]+1-state[j],mu[j],sig[j],target[j]-state[j],tau);
+      beta[i] = get_below_minimum_sigma_wt(lower[j]-1-state[j],mu[j],sig[j],target[j]-state[j],tau);
       delta[i] += (alpha[i] + beta[i]);
     }
   }
@@ -120,10 +121,94 @@ const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper){
     // std::cout<<"a:"<<a[i]<<", b:"<<b[i]<<", delta:"<<delta[i]<<std::endl;
     // std::cout<<"alpha:"<<alpha[i]<<", beta: "<<beta[i]<<std::endl;
     percentage_variance_reduction -= (a[i]*b[i]*(1-b[i]) - a[i]*delta[i]*(1-delta[i]));
+    // percentage_variance_reduction -= (a[i]*b[i]*(1-b[i]) - (a[i]*(alpha[i]*(1-alpha[i])+beta[i]*(1-beta[i]))));
+    
   }
   //double pvr = 1 - (Q1 - Q2 - Q3)/(p*(1-p));
   //std::cout<<"PVR:"<<pvr<<", Q1: "<<Q1<<", Q2:"<<Q2<<", Q3:"<<Q3<<", p:"<<p<<std::endl;
   percentage_variance_reduction = percentage_variance_reduction/(p*(1-p));
+  if(percentage_variance_reduction>1){
+    return(1);
+  }
+  if(percentage_variance_reduction<0){
+    return(0);
+  }
+  return(percentage_variance_reduction);
+}
+//[[Rcpp::export]]
+Rcpp::DataFrame get_variance_brownian2(const std::string &model_name, const Rcpp::NumericVector &thetas, 
+const double &tout, const double &tau, const Rcpp::NumericVector &start, const Rcpp::NumericVector &target, 
+const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper){
+  auto model = model_dict.get_model(model_name);
+  Rcpp::NumericMatrix S = model->S;
+  Rcpp::NumericVector h = model->get_rates(start,thetas);  
+  int number_reactions = S.ncol();
+  int number_species = S.nrow();
+  Rcpp::NumericVector mu(number_species);
+  Rcpp::NumericVector sig(number_species);
+  for(int i=0;i<number_species;++i){
+    for(int j=0;j<number_reactions;++j){
+      mu(i) += S(i,j)*h[j];
+      sig(i) += S(i,j)*h[j]*S(i,j);
+    }
+    sig(i) = sqrt(sig(i));
+  }  
+  int total_points = 1;
+  for(int i=0;i<number_species;++i){
+      total_points *= (upper[i]-lower[i]+1);
+  }
+  Rcpp::NumericVector a(total_points);
+  Rcpp::NumericVector b(total_points);
+  Rcpp::NumericVector delta(total_points);
+  Rcpp::NumericVector alpha(total_points);
+  Rcpp::NumericVector beta(total_points);
+  double p = 1;
+  a = a+1;
+  b = b+1;
+  Rcpp::NumericVector state;
+  int state_component;
+  for(int i=0;i<number_species;++i){
+    p *= get_probability_hit(start[i],target[i],tout,mu[i],sig[i]);
+  }
+  for(int i=0;i<total_points;++i){
+    state = index_to_state(i,lower,upper);
+    for(int j=0;j<number_species;++j){
+      a[i] *= get_probability_hit(start[j],state[j],tout-tau,mu[j],sig[j]);
+      // std::cout<<"start:"<<start[j]<<", state:"<<state[j]<<std::endl;
+      b[i] *= get_probability_hit(state[j],target[j],tau,mu[j],sig[j]);
+      alpha[i] = get_above_maximum_sigma_wt(upper[j]+1-state[j],mu[j],sig[j],target[j]-state[j],tau);
+      beta[i] = get_below_minimum_sigma_wt(lower[j]-1-state[j],mu[j],sig[j],target[j]-state[j],tau);
+      delta[i] += (alpha[i] + beta[i]);
+    }
+  }
+
+  double percentage_variance_reduction = p*(1-p);
+  // double Q1 = 0;
+  // double Q2 = 0;
+  // double Q3 = 0;
+  for(int i=0;i<total_points;++i){
+    // Q1 += a[i]*b[i]*(1-b[i]);
+    // Q2 += a[i]*alpha[i]*(1-alpha[i]);
+    // Q3 += a[i]*beta[i]*(1-beta[i]);
+    // std::cout<<"a:"<<a[i]<<", b:"<<b[i]<<", delta:"<<delta[i]<<std::endl;
+    // std::cout<<"alpha:"<<alpha[i]<<", beta: "<<beta[i]<<std::endl;
+    percentage_variance_reduction -= (a[i]*b[i]*(1-b[i]) - a[i]*delta[i]*(1-delta[i]));
+    // percentage_variance_reduction -= (a[i]*b[i]*(1-b[i]) - (a[i]*(alpha[i]*(1-alpha[i])+beta[i]*(1-beta[i]))));
+    
+  }
+  //double pvr = 1 - (Q1 - Q2 - Q3)/(p*(1-p));
+  //std::cout<<"PVR:"<<pvr<<", Q1: "<<Q1<<", Q2:"<<Q2<<", Q3:"<<Q3<<", p:"<<p<<std::endl;
+  percentage_variance_reduction = percentage_variance_reduction/(p*(1-p));
+  Rcpp::DataFrame df = Rcpp::DataFrame::create(
+    Rcpp::Named("a")=a,
+    Rcpp::Named("b")=b,
+    Rcpp::Named("alpha")=alpha,
+    Rcpp::Named("beta")=beta,
+    Rcpp::Named("delta")=delta,
+    Rcpp::Named("p")=p,
+    Rcpp::Named("pvr")=percentage_variance_reduction
+    );
+  return(df);
   if(percentage_variance_reduction>1){
     return(1);
   }
@@ -159,7 +244,7 @@ double get_variance_brownian_fast(const std::string &model_name, const Rcpp::Num
 const double &tout, const double &tau, const Rcpp::NumericVector &start, const Rcpp::NumericVector &target, 
 const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper){
   if(tau<1e-15){
-    return(0);
+    return(1);
   }
   auto model = model_dict.get_model(model_name);
   Rcpp::NumericMatrix S = model->S;
@@ -192,8 +277,8 @@ const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper){
   double Q3_a,Q3_b;
   double Q3 = 0;
   for(int i=0;i<number_species;++i){
-    k = std::max(upper[i],target[i]);
-    v = std::min(lower[i],target[i]);
+    k = std::max(upper[i]+1,target[i]);
+    v = std::min(lower[i]-1,target[i]);
     var = sig[i]*sig[i];
     pvr1 = R::dnorm(target[i],start[i]+mu[i]*tout,sqrt(var*tout),0) - 1/sqrt(4*M_PI*var*tau)*R::dnorm(target[i],start[i]+mu[i]*tout,sqrt(var*(s+tau/2)),0);
     pvr2 = R::dnorm(2*k-target[i],start[i]+mu[i]*tout,sqrt(var*tout),0)*exp(-2*(k-target[i])*mu[i]/var)*R::pnorm(k*tout-start[i]*tau,s*(2*k-target[i]),sqrt(tout*var*s*tau),1,0);
@@ -324,6 +409,7 @@ const double &pvr_goal){
   //std::cout<<"Upper:";
   //double goal = (Q1 - pvr_goal*p*(1-p))/2;
   double goal = Q1*(1 - pvr_goal)/2;
+  // Q2/Q1 <= (1-pvr_goal)/2
   
   int counter = 0;
   while(true){
