@@ -22,6 +22,17 @@ plot_chain = function(chain,species,colours,...){
     legend("topleft",legend=species,col=colours,inset=0.05,lty=rep(1,columns-1))
 }
 
+plot_chain_list = function(chain_list,species,colours,...){
+    plot(1,xlim=c(0,1),ylim=c(900,1100))
+    for(chain in chain_list){
+        columns = ncol(chain)
+        for(i in 2:columns){
+            lines(chain[,c(1,i)],col=colours[i-1])
+        }
+        legend("topleft",legend=species,col=colours,inset=0.05,lty=rep(1,columns-1))
+    }
+}
+
 add_chain = function(chain,species,colours,...){
     lines(chain[,c(1,2)],col=colours[1],...)
     columns = ncol(chain)
@@ -109,7 +120,7 @@ upper = 1005
 tau = 0.1
 
 lower = 990
-upper = 1010
+upper = 1020
 obs = 1000
 s = seq(lower-5,upper+5,by=0.01)
 
@@ -140,35 +151,59 @@ df$delta
 vf(990:1020,thetas=theta,tout=tout,tau=tau,start=x,target=obs,990,1020)
 
 
-n <- 2000
+n <- 400
 t <- 1
 
-sim_brown = function(m,wt){
-    bm <- 1000 + c(0, cumsum(rnorm(n,mu*t/n,sig*sqrt(t/n))))
-    steps <- seq(0,t,length=n+1)
-    if(any(bm>m+1/2) & any(abs(bm[n+1] - wt)<1/2)){
+sim_brown = function(m){
+    bm <- x + c(0, cumsum(rnorm(n,mu*tout/n,sig*sqrt(tout/n))))
+    # if(any(bm>m+1/2) & any(abs(bm[n+1] - wt)<1/2)){
+    #     return(1)
+    # }
+    if(any(bm>=m)){
         return(1)
     }
     return(0)
 }
 sim_MJP = function(m,wt){
     upper = m
-    df = sim_data("BDI",x,theta, tout, lower, upper, tau)
-    if(!df$inS & any(tail(sim_data("BDI",x,theta, tout, lower, upper, tau)$data,1)[,2]-wt==0)){
+    df = sim_data("BDI_2",x,theta, tout, lower, upper, tau)
+    if(!df$inS & any(tail(df$data,1)[,2]-wt==0)){
         return(1)
     }
     return(0)
 }
-B = 100000
-sig = sqrt(get_var("BDI",x,theta))
-mu = get_mu("BDI",x,theta)
-sim1 = replicate(B,sim_brown(m=1010,wt=1005))
-sim2 = replicate(5000,sim_MJP(m=1010,wt=1000:1005))
+
+B = 500000
+sig = sqrt(get_var("BDI_2",x,theta))
+mu = get_mu("BDI_2",x,theta)
+
+sim1 = rep(NA,B)
+for(i in 1:B){
+    sim1[i] = sim_brown(m=upper)
+}
+
+sim2 = rep(NA,B)
+for(i in 1:B){
+    sim2[i] = sim_MJP(m=upper,wt=lower_limit:upper_limit)
+}
+
+sum(vexact_brown(upper-x+1,mu,sig,(lower_limit:upper_limit),tout))
+sum(vexact_brown(upper-x+1/2,mu,sig,(lower_limit:upper_limit),tout))
+sum(vexact_brown(upper-x,mu,sig,(lower_limit:upper_limit),tout))
+
+sum(Vget_above_maximum_sigma_wt(upper-x+1,mu,sig,lower_limit:upper_limit,tout))
+sum(Vget_above_maximum_sigma_wt(upper-x+1/2,mu,sig,lower_limit:upper_limit,tout))
+sum(Vget_above_maximum_sigma_wt(upper-x,mu,sig,lower_limit:upper_limit,tout))
+integrate(Vget_above_maximum_sigma_wt,lower_limit,upper_limit,x=upper-x+1,mu=mu,sig=sig,tout=tout,abs.tol=1e-15)$value
+
+get_rate("BDI_2",x,theta)
+theta = c(30,20)
+upper = 140
+mu = get_mu("BDI_2",x,theta)
+sig = sqrt(get_var("BDI_2",x,theta))
 
 mean(sim1) + c(-1,1)*1.96*sd(sim1)/sqrt(B)
 mean(sim2) + c(-1,1)*1.96*sd(sim2)/sqrt(B)
-mean(sim1)
-mean(sim2)
 
 max_test = function(upper,xT,x0,tout,mu,sig){
     1/sqrt(2*pi*sig^2*tout)*exp(-mu^2*tout/(2*sig^2))*exp(mu*(xT-x0)/sig^2)*exp(-((2*max(upper,x0,xT)-xT-x0)^2)/(2*sig^2*tout))
@@ -176,8 +211,11 @@ max_test = function(upper,xT,x0,tout,mu,sig){
 min_test = function(lower,xT,x0,tout,mu,sig){
     1/sqrt(2*pi*sig^2*tout)*exp(-mu^2*tout/(2*sig^2))*exp(mu*(xT-x0)/sig^2)*exp(-((2*min(lower,x0,xT)-xT-x0)^2)/(2*sig^2*tout))
 }
-max_test(0,-3,0,1,mu,sig)
-get_above_maximum_sigma_wt(-1,mu,sig,-3,1)
+sig = sqrt(get_var("BDI_2",x,theta))
+mu = get_mu("BDI_2",x,theta)
+
+max_test(3+0.5,3,0,1,mu,sig)
+get_above_maximum_sigma_wt(3+0.5,mu,sig,3,1)
 
 min_test(0,-3,0,1,mu,sig)
 get_below_minimum_sigma_wt(0,mu,sig,-3,1)
@@ -220,37 +258,78 @@ plot_Q = function(x,theta,obs,lower,upper,lower_limit,upper_limit){
     Q_n = nrow(Q)
     mu = get_mu("BDI_2",x,theta)
     sig = sqrt(get_var("BDI_2",x,theta))   
-    plot((upper+1):upper_limit,expQ[(bridge_index+1+bridge_index+1):(Q_n-1),bridge_index+1+target_index],type='l',xlim=c(lower,upper_limit),col='blue',xlab="x_{t-tau}",ylab="Probability",sub="theta=c(220,200),t=tau=1,u=120, obs=110",ylim=c(0,0.01))
-    legend("topleft",c(
-        "P(X_t=x_t,X_{[t-tau,t]}>u+1|X_{t-tau}=x_{t-tau}) for a BM",
-        "P(X_t=x_t,X_{[t-tau,t]}>u|X_{t-tau}=x_{t-tau}) for a MJP"),col=c("blue","darkgreen"),lty=c(1,0),pch=c(NA,4))
+    plot((upper+1):upper_limit,expQ[(bridge_index+1+bridge_index+1):(Q_n-1),bridge_index+1+target_index],type='l',xlim=c(lower_limit,upper_limit),col='blue',xlab="x_{t-tau}",ylab="Probability",sub="theta=c(220,200),t=tau=1,u=120, obs=110")
+    # legend("topleft",c(
+    #     "P(X_t=x_t,X_{[t-tau,t]}>u+1|X_{t-tau}=x_{t-tau}) for a BM",
+    #     "P(X_t=x_t,X_{[t-tau,t]}>u|X_{t-tau}=x_{t-tau}) for a MJP"),col=c("blue","darkgreen"),lty=c(1,0),pch=c(NA,4))
     lines(lower_limit:upper,expQ[1:(bridge_index),bridge_index+1+target_index],type='l',col='blue')
     points(lower_limit:upper_limit,vget_above_maximum_sigma_wt(upper-(lower_limit:upper_limit)+1,mu,sig,obs-(lower_limit:upper_limit),1),col='darkgreen',pch=4)
 }
 upper = 120
 obs = 110
-upper_limit = 300
 pdf("Joint_brownian_max.pdf")
+theta = c(220,200)
+obs=95
 plot_Q(x,theta,obs,lower,upper,lower_limit,upper_limit)
+abline(v=upper)
 dev.off()
+lower_limit
+
+get_Q = function(x,theta,obs,lower,upper,lower_limit,upper_limit){
+    Q1 = get_coffin_matrix("BDI_2",lower_limit,upper,theta)
+    Q2 = get_coffin_matrix("BDI_2",lower_limit,upper_limit,theta)
+    target_index_Q2 = state_to_index(obs,lower_limit,upper_limit)+1
+    start_index_Q2 = state_to_index(x,lower_limit,upper_limit)+1
+    coffin_index_Q1 = upper-lower_limit+2
+    coffin_index_Q2 = upper_limit-lower_limit+2
+    qi = expm(Q1)
+    bi = expm(Q2)
+    qi = qi[-c(coffin_index_Q1),]
+    bi = bi[-c(coffin_index_Q2),]
+    qi = qi[,-c(coffin_index_Q1)]
+    bi = bi[,-c(coffin_index_Q2)]
+    qi = adiag(qi,diag(0,nrow(bi)-nrow(qi)))    
+    di = bi-qi
+    return(di)
+}
+plot_Q = function(x,theta,obs,lower,upper,lower_limit,upper_limit){
+    expQ = get_Q(x,theta,obs,lower,upper,lower_limit,upper_limit)
+    mu = get_mu("BDI_2",x,theta)
+    sig = sqrt(get_var("BDI_2",x,theta))   
+    obs_index = state_to_index(obs,lower_limit,upper_limit)+1
+    plot(NULL,xlim=c(lower_limit,upper_limit),ylim=c(0,max(expQ[,obs_index])))
+    legend("topleft",c(
+        "P(X_t=x_t,X_{[t-tau,t]}>u+1|X_{t-tau}=x_{t-tau}) for a BM",
+        "P(X_t=x_t,X_{[t-tau,t]}>u|X_{t-tau}=x_{t-tau}) for a MJP"),col=c("blue","darkgreen"),lty=c(1,0),pch=c(NA,4))
+    lines(lower_limit:upper_limit,expQ[,obs_index],col='blue')
+    points(lower_limit:upper_limit,vget_above_maximum_sigma_wt(upper-(lower_limit:upper_limit)+1,mu,sig,obs-(lower_limit:upper_limit),1),col='darkgreen',pch=4)
+    points(lower_limit:upper_limit,vexact_brown(upper-(lower_limit:upper_limit)+1,mu,sig,obs-(lower_limit:upper_limit),1),col='darkred',pch=4)
+}
+theta = c(210,200)
+plot_Q(x,theta,obs,lower,upper,lower_limit,upper_limit)
+obs = 120
+lower
+upper = 121
+x
 
 get_Q_max = function(x,theta,obs,lower,upper,lower_limit,upper_limit){
-    df = get_Q(x,theta,obs,lower,upper,lower_limit,upper_limit)
-    expQ = df$expQ
-    Q = df$Q
-    bridge_index = df$bridge_index
-    target_index = df$target_index
-    Q_n = nrow(Q)
-    index = c(
-        1:(bridge_index),bridge_index+1+target_index,
-        (bridge_index+1+bridge_index+1):(Q_n-1),bridge_index+1+target_index)[x-lower_limit+1]
-    return(expQ[index,bridge_index+1+target_index])
+    Q1 = get_coffin_matrix("BDI_2",lower_limit,upper,theta)
+    Q2 = get_coffin_matrix("BDI_2",lower_limit,upper_limit,theta)
+    start_index_Q1 = state_to_index(x,lower_limit,upper)+1
+    start_index_Q2 = state_to_index(x,lower_limit,upper_limit)+1
+    obs_index_Q1 = state_to_index(obs,lower_limit,upper)+1
+    obs_index_Q2 = state_to_index(obs,lower_limit,upper_limit)+1    
+    qi = expm(Q1)[start_index_Q1,obs_index_Q1] # P(X_T=x_T,X_[]<u+1|X_0=x)
+    bi = expm(Q2)[start_index_Q2,obs_index_Q2] # P(X_T=x_T|X_0=x)
+    di = bi-qi # P(X_T=x_T,X_[]=>u+1|X_0=x)=P(X_T=x_T,X_[]>u|X_0=x)
+    return(di)
 }
+
 lower = 90
 upper = 105
 obs = 95
-lower_limit = 30
-upper_limit = 150
+lower_limit = 0
+upper_limit = 300
 x = c(100)
 theta = c(200,200)
 
@@ -274,4 +353,124 @@ data_chain = get_chain(data,tout)
 plot_chain(data_chain,c("Population"),c("blue"),ylim=c(50,150))
 add_box(lower,upper,tout,tau,"blue")
 add_obs(tout,obs,"blue")
+
+Vget_above_maximum_sigma_wt = Vectorize(get_above_maximum_sigma_wt,vectorize.args = 'wt')
+exact_brown = function(x,mu,sig,wt,tout){
+    integrate(Vget_above_maximum_sigma_wt,wt-1/2,wt+1/2,mu=mu,sig=sig,x=x,tout=tout)$value
+}
+vexact_brown = Vectorize(exact_brown,vectorize.args = c('x','wt'))
+
+sum(vexact_brown(upper-(lower_limit:upper_limit)+1,mu,sig,obs-(lower_limit:upper_limit),1))
+
+get_obs = function(model_name,start,theta,times){
+    num_obs = length(times)
+    data = sim_data_frac(model_name,x,theta,times[num_obs])$data
+    obs_list = data.frame(matrix(ncol=length(start)))
+    num_data = nrow(data)
+    #times = c(0,times)
+    count = 1
+    for(i in 1:num_data){
+        for(j in count:num_obs){
+            next_time = times[j]
+            if(next_time>=data[i,1] && (i==num_data || data[i+1,1]>next_time)){
+                x_row = data[i,]
+                x_row[1] = next_time
+                obs_list[j,] = x_row[-1]
+                count = count + 1
+            }
+        }
+    }    
+    return(as.matrix(unname(obs_list)))
+}
+
+get_lower = function(model_name,obs_list,widths){
+    num_obs = nrow(obs_list)
+    dim = ncol(obs_list)
+    lower_list = data.frame(matrix(ncol=dim))
+    for(i in 1:num_obs){
+        lower_vec = rep(0,dim)
+        for(j in 1:dim){
+            lower_vec[j] = floor(obs_list[i,][j]-widths[j]/2)
+        }        
+        lower_list[i,] = lower_vec
+    }
+    return(as.matrix(unname(lower_list)))
+}
+
+get_upper = function(model_name,obs_list,widths){
+    num_obs = nrow(obs_list)
+    dim = ncol(obs_list)
+    upper_list = data.frame(matrix(ncol=dim))
+    for(i in 1:num_obs){
+        upper_vec = rep(0,dim)
+        for(j in 1:dim){
+            upper_vec[j] = ceiling(obs_list[i,][j]+widths[j]/2)
+        }        
+        upper_list[i,] = upper_vec
+    }
+    return(as.matrix(unname(upper_list)))
+}
+
+get_box = function(model_name,theta,tout_list,tau,x0,obs_list,pvr_goal){
+    num_obs = nrow(obs_list)
+    dim = ncol(obs_list)
+    lower_list = data.frame(matrix(ncol=dim))
+    upper_list = data.frame(matrix(ncol=dim))
+    x = x0
+    prev_time = 0
+    for(i in 1:num_obs){
+        box = get_box_brownian_fast(model_name,theta,tout_list[i]-prev_time,tau,x,obs_list[i,],pvr_goal)
+        lower_list[i,] = box$lower
+        upper_list[i,] = box$upper
+        x = obs_list[i,]
+        prev_time = tout_list[i]
+    }
+    return(list(lower=as.matrix(unname(lower_list)), upper=as.matrix(unname(upper_list))))
+}
+
+plot_RB_MJP = function(model_name, x0, theta, tout_list,lower_list,upper_list, tau, obs_list, M, species_names,species_col,ylims){
+    num_obs = nrow(obs_list)
+    num_species = ncol(obs_list)
+    tout = tout_list[num_obs]
+    plot(1,xlim=c(0,tout),ylim=ylims)
+    for(i in 1:num_obs){
+        lower = lower_list[i,]
+        upper = upper_list[i,]
+        obs = obs_list[i,]
+        tout = tout_list[i]
+        add_box(lower,upper,tout,tau,species_col)
+        add_obs(tout,obs,species_col)
+    }
+
+    for(i in 1:M){
+        x = x0
+        prev_time = 0
+        for(j in 1:(num_obs)){
+            if(j>1){
+                x = obs_list[j-1,]
+            }
+            tout = tout_list[j]-prev_time
+            data = sim_data_frac(model_name,x,theta,tout)$data
+            data_chain = get_chain(data,tout)
+            data_chain[,1] = data_chain[,1]+prev_time
+            add_chain(data_chain,species_names,alpha(species_col,0.3))
+            prev_time = tout_list[j]
+        }
+    }
+    for(i in 1:num_species){
+        prev_time = 0
+        x = x0
+        for(j in 1:num_obs){
+            x_coords=c(prev_time,tout_list[j])
+            mu = get_mu(model_name,x,theta)
+            forecast = x[i] + mu[i]*(tout_list[j]-prev_time)
+            y_coords=c(x[i],forecast)
+            prev_time = tout_list[j]
+            x = obs_list[j,]
+            lines(x_coords,y_coords,lty='dashed',col=species_col[i])
+        }
+    }
+    legend("topleft",legend=species_names,col=species_col,inset=0.05,lty=rep(1,length(species_names)))
+}
+plot_RB_MJP("LV",x,theta,tout_list,lower_list,upper_list,tau,obs_list,30,c("Predator","Prey"),c("red","blue"),c(50,400))
 

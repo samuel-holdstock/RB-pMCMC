@@ -58,6 +58,7 @@ Rcpp::NumericVector upper){
     int num_param = lower.length();
     int prev = 1;
     int num_states = 0;
+    int total_states = 1;
     Rcpp::NumericVector coordinates(num_param);
     int index_copy = index;
     int box_diff = 0;
@@ -66,8 +67,9 @@ Rcpp::NumericVector upper){
         coordinates[i] = (index % box_diff)+lower[i];
         index /= box_diff;
         num_states += box_diff;
+        total_states *= box_diff;
     }
-    if(index_copy>=num_states){
+    if(index_copy>=total_states){
         std::cout<<"WARNING INDEX>NUM_STATES"<<std::endl;
     }
     return(coordinates);    

@@ -10,3 +10,9 @@ x = c(S0,I0)
 theta = c(N,beta,gamma)
 
 obs = c(0,13)
+
+lower = c(0,0)
+upper = c(2,50)
+
+lower_limit = c(0,0)
+upper_limit = c(5,100)

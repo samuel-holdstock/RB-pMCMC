@@ -9,6 +9,7 @@ ModelDictionary::ModelDictionary(){
   auto SEIR_ptr = std::make_shared<SEIR>();
   auto SEIR_N_ptr = std::make_shared<SEIR_N>();
   auto BDI_2_ptr = std::make_shared<BDI_2>();
+  auto LV_ptr = std::make_shared<LV>();
   
   add_model(BDI_ptr);
   add_model(SIR_ptr);
@@ -16,6 +17,7 @@ ModelDictionary::ModelDictionary(){
   add_model(SEIR_ptr);
   add_model(SEIR_N_ptr);
   add_model(BDI_2_ptr);
+  add_model(LV_ptr);
 }
 void ModelDictionary::add_model(std::shared_ptr<Model> model_ptr){
   model_dictionary[model_ptr->name] = model_ptr;
@@ -148,8 +150,8 @@ Rcpp::NumericVector BDI_2::get_rates(const Rcpp::NumericVector &x, const Rcpp::N
   double P=x[0]; // Define species
   double gamma=theta[0], epsilon=theta[1]; // Define parameters
   Rcpp::NumericVector r(2); // Number of reactions 
-  r[0]=gamma; // Calculate rates
-  r[1]=epsilon;
+  r[0]=gamma*P; // Calculate rates
+  r[1]=epsilon*P;
   return r; // Return vector of rates
 }
 BDI_2::BDI_2(){
@@ -158,5 +160,27 @@ BDI_2::BDI_2(){
   num_states = 1;
   num_params = 2;
   values = {1,-1};
+  S = populate_matrix(values);
+}
+
+Rcpp::NumericVector LV::get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta){
+  double predator=x[0], prey=x[1]; // Define species
+  double alpha=theta[0], beta=theta[1], gamma=theta[2]; // Define parameters
+  // alpha is the prey reproduction rate
+  // beta is the predation rate
+  // gamma is the predator death rate
+  Rcpp::NumericVector r(3); // Number of reactions 
+  r[0]=alpha*prey; // Calculate rates
+  r[1]=beta*prey*predator;
+  r[2]=gamma*predator;
+  return r; // Return vector of rates
+}
+LV::LV(){
+  name = "LV";
+  num_reactions = 3;
+  num_states = 2;
+  num_params = 3;
+  values = {0, 1,-1, 
+            1,-1, 0};
   S = populate_matrix(values);
 }

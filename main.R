@@ -1,5 +1,4 @@
 source("utils/Rlibraries.R")
-
 sourceCpp("main.cpp")
 
 source("examples/Gillespie/BDI.R")

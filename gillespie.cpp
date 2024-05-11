@@ -130,6 +130,68 @@ Rcpp::List gillespie_alg_entire(const Rcpp::NumericVector &x0, const Rcpp::Numer
   return results;
 }
 
+Rcpp::List gillespie_alg_frac(const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, const Rcpp::NumericMatrix &S, double tout,
+                            std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> rates_function) {
+  int n_spec = S.nrow(); // Number of species
+  int n_react = S.ncol(); // Number of reactions
+  double rtot, tcurr=0, tnext=0;
+  Rcpp::NumericVector xcurr=clone(x0);
+  Rcpp::NumericVector r=rates_function(xcurr,theta);
+  rtot=sum(r);
+  tnext=tcurr-log(R::runif(0,1))/rtot; // add Exp(rtot)
+  Rcpp::NumericVector xt_data;
+  while (tnext<tout) {
+    tcurr=tnext;
+    double u = R::runif(0,1);
+    double cumtot = 0; 
+    for(int i=0; i<n_react; ++i){
+        cumtot += r[i];
+        if(u*rtot<cumtot){
+            xcurr += S(Rcpp::_,i);
+            break;
+        }
+    }
+    r=rates_function(xcurr,theta);
+    rtot=sum(r);
+    tnext=tcurr-log(R::runif(0,1))/rtot; // add Exp(rtot)
+  xt_data = xcurr;
+  }
+  Rcpp::List results = Rcpp::List::create(Rcpp::Named("xt_data")=xt_data);
+  return results;
+}
+
+Rcpp::List gillespie_alg_entire_frac(const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, const Rcpp::NumericMatrix &S, double tout,
+                            std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> rates_function) {
+  int n_spec = S.nrow(); // Number of species
+  int n_react = S.ncol(); // Number of reactions
+  double rtot, tcurr=0, tnext=0;
+  Rcpp::NumericVector xcurr=clone(x0);
+  Rcpp::NumericVector r=rates_function(xcurr,theta);
+  rtot=sum(r);
+  tnext=tcurr-log(R::runif(0,1))/rtot; // add Exp(rtot)
+  Rcpp::NumericMatrix data(0,n_spec+1);
+
+  data = add_row_time(data,xcurr,tcurr);
+  while (tnext<tout) {
+    tcurr=tnext;
+    double u = R::runif(0,1);
+    double cumtot = 0; 
+    for(int i=0; i<n_react; ++i){
+        cumtot += r[i];
+        if(u*rtot<cumtot){
+            xcurr += S(Rcpp::_,i);
+            break;
+        }
+    }
+    data = add_row_time(data,xcurr,tcurr);
+    r=rates_function(xcurr,theta);
+    rtot=sum(r);
+    tnext=tcurr-log(R::runif(0,1))/rtot; // add Exp(rtot)
+  }
+  Rcpp::List results = Rcpp::List::create(Rcpp::Named("data")=data, Rcpp::Named("xt_data")=xcurr);
+  return results;
+}
+
 Rcpp::NumericMatrix add_row_time(Rcpp::NumericMatrix data, Rcpp::NumericVector xcurr, double tnext){
   int nrows = data.rows();
   int ncols = data.ncol();

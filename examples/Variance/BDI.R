@@ -94,20 +94,32 @@ for(k in 2:length(lvls)){
     var_fast = get_variance_brownian_fast("BDI",theta,tout,lvls[k],x,obs,results$lower,results$upper)
     var = get_variance_brownian("BDI",theta,tout,lvls[k],x,obs,results$lower,results$upper)
     var_exact = get_variance_exact("BDI",theta,tout,lvls[k],x,obs,results$lower,results$upper,lower_limit,upper_limit) 
-    box_results = rbind(box_results,data.frame("lower"=results$lower,"upper"=results$upper,"PVR"=1-var_fast,"goal"=lvls[i],"tau"=lvls[k],"col"=col[k],"type"="brownian_fast"))
-    box_results = rbind(box_results,data.frame("lower"=results$lower,"upper"=results$upper,"PVR"=1-var,"goal"=lvls[i],"tau"=lvls[k],"col"=col[k],"type"="brownian"))
-    box_results = rbind(box_results,data.frame("lower"=results$lower,"upper"=results$upper,"PVR"=1-var_exact,"goal"=lvls[i],"tau"=lvls[k],"col"=col[k],"type"="exact"))
+    box_results = rbind(box_results,data.frame("lower"=results$lower,"upper"=results$upper,"PVR"=1-var_fast,"goal"=lvls[i],"scale"=results$scale,"tau"=lvls[k],"col"=col[k],"type"="brownian_fast"))
+    box_results = rbind(box_results,data.frame("lower"=results$lower,"upper"=results$upper,"PVR"=1-var,"goal"=lvls[i],"scale"=results$scale,"tau"=lvls[k],"col"=col[k],"type"="brownian"))
+    box_results = rbind(box_results,data.frame("lower"=results$lower,"upper"=results$upper,"PVR"=1-var_exact,"goal"=lvls[i],"scale"=results$scale,"tau"=lvls[k],"col"=col[k],"type"="exact"))
   }
   # lines(box_results$goal,box_results$PVR,col=col[k])
 }
 
-subset(box_results,goal==0.1)
 box = subset(box_results,(tau==0.1 & type=="brownian"))
 lines(box$goal,box$PVR,type='o',col="red",lwd=2)
 box = subset(box_results,(tau==0.1 & type=="brownian_fast"))
 lines(box$goal,box$PVR,type='o',col="blue",lwd=2)
 box = subset(box_results,(tau==0.1 & type=="exact"))
 lines(box$goal,box$PVR,type='o',col="green",lwd=2)
+
+lines(box$goal,box$PVR*box$scale,type='o',col="red",lwd=2)
+box = subset(box_results,(tau==0.1 & type=="brownian_fast"))
+lines(box$goal,box$PVR*box$scale,type='o',col="blue",lwd=2)
+box = subset(box_results,(tau==0.1 & type=="exact"))
+lines(box$goal,box$PVR*box$scale,type='o',col="green",lwd=2)
+
+get_mu("BDI",x,theta)
+get_var("BDI",x,theta)
+get_rate("BDI",x,theta)
+1/2+1/2*0.8*sqrt(get_var("BDI",x,theta))/sqrt(sum(get_rate("BDI",x,theta)))
+1/2+1/2*0.8*sqrt(400)/sqrt(400)
+
 box
 title(main=paste("N:",1000),cex.main=1.5)
 legend("topleft",legend=c("BM sum over x_{t-tau}in S","BM Integrated out x_{t-tau}in Omega","Exact"),col=c("red","blue","green"),inset=0.05,lty=c(1,1),cex=1.5)
@@ -115,12 +127,17 @@ dev.off()
 
 subset(box_results,tau==0.1)
 
-get_variance_brownian_fast("BDI",theta,tout,0.1,x,obs,lower,upper)
-get_variance_brownian("BDI",theta,tout,0.1,x,obs,lower,upper)
+get_variance_brownian_fast("SIR_N",theta,tout,tau,x,obs,lower_limit,upper_limit)
+
+get_variance_brownian("SIR_N",theta,tout,0.1,x,obs,lower,upper)
 lower_limit = 960
 upper_limit = 1040
 
-get_variance_exact("BDI",theta,tout,0.1,x,obs,lower,upper,lower_limit,upper_limit)
-upper
+get_variance_exact("SIR_N",theta,tout,0.1,x,obs,lower,upper,lower_limit,upper_limit)
+get_box_brownian_fast("SIR_N",theta,tout,tau,x,obs,0.1)
 
-get_mu("BDI",x,theta)
+source("examples/Parameters/SIR_N/Equilibrium (N=1000).R")
+
+qnorm(1-0.025/2)
+
+
