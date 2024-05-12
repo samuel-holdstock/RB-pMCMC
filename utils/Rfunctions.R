@@ -432,7 +432,7 @@ plot_RB_MJP = function(model_name, x0, theta, tout_list,lower_list,upper_list, t
     num_obs = nrow(obs_list)
     num_species = ncol(obs_list)
     tout = tout_list[num_obs]
-    plot(1,xlim=c(0,tout),ylim=ylims)
+    plot(1,xlim=c(0,tout),ylim=ylims,main="Reaction network",xlab="Time",ylab="Species count")
     for(i in 1:num_obs){
         lower = lower_list[i,]
         upper = upper_list[i,]
@@ -472,5 +472,149 @@ plot_RB_MJP = function(model_name, x0, theta, tout_list,lower_list,upper_list, t
     }
     legend("topleft",legend=species_names,col=species_col,inset=0.05,lty=rep(1,length(species_names)))
 }
-plot_RB_MJP("LV",x,theta,tout_list,lower_list,upper_list,tau,obs_list,30,c("Predator","Prey"),c("red","blue"),c(50,400))
+
+get_study_rb = function(model_name,x,theta,tout_list,obs_list,M,N,lower_list,upper_list,tau){
+    rb_sims = list(sims=rep(0,N),times=rep(0,N))
+    for(i in 1:N){
+        start.time = Sys.time()
+        rb_sims$sims[i] = RB_list(model_name,x, theta, tout_list, lower_list, upper_list, tau,obs_list,M)
+        end.time = Sys.time()
+        rb_sims$times[i] = end.time-start.time
+    }
+    return(rb_sims)
+}
+
+get_study_frac = function(model_name,x,theta,tout_list,obs_list,M,N,lower_list,upper_list,tau){
+    frac_sims = list(sims=rep(0,N),times=rep(0,N))
+    for(i in 1:N){
+        start.time = Sys.time()
+        frac_sims$sims[i] = frac_list(model_name,x, theta, tout_list, obs_list,M)
+        end.time = Sys.time()
+        frac_sims$times[i] = end.time-start.time
+    }
+    return(frac_sims)
+}
+
+plot_study_estimates_tau = function(rb,frac,barwidth,x_max=1,tau){
+    rb_est = rb$sims
+    frac_est = frac$sims
+
+    breaks = (seq(0,max(c(rb_est,frac_est))+2*barwidth,by=barwidth)-barwidth/2)
+    p1 = hist(rb_est,breaks=breaks,plot=F)
+    p1$counts=p1$counts/sum(p1$counts)
+    p2 = hist(frac_est,breaks=breaks,plot=F)
+    p2$counts=p2$counts/sum(p2$counts)
+
+    q1 = p1$breaks[which(cumsum(p1$counts)>=x_max)[1]+1]
+    q2 = p2$breaks[which(cumsum(p2$counts)>=x_max)[1]+1]
+    xlim = c(-barwidth/2,max(c(q1,q2)))
+
+    plot(p1,main='Estimates of likelihood',xlab='Likelihood',ylab='Probability Distribution',xlim=xlim,ylim=c(0,1),
+    cex.lab=1.5,cex.main=1.5,cex.axis=1.5,yaxt='n',col=rgb(1,0,0,1/4))
+    plot(p2,xlim=xlim,ylim=c(0,1),add=T,col=rgb(0,0,1,1/4))
+    axis(2,cex.axis=1.5)
+
+    abline(v=mean(rb_est),col=rgb(1,0,0,1/4),lty='dashed')
+    abline(v=mean(frac_est),col=rgb(0,0,1,1/4),lty='dashed')
+
+    times_rb = rb$times
+    times_frac = frac$times
+    rb_eff = formatC(var(rb_est)*sum(times_rb),format='e')
+    frac_eff = formatC(var(frac_est)*sum(times_frac),format='e')
+    eff_ratio = round((var(frac_est)*sum(times_frac))/(var(rb_est)*sum(times_rb)),2)
+
+    mtext(side = 3, line = 0.25, adj = 0.5, paste("tau =",tau),cex = 1.5)
+    mtext(side = 3, line = -10, adj = 0.8, paste("RB Inefficiency =",rb_eff),cex = 1,col='red')
+    mtext(side = 3, line = -11, adj = 0.8, paste("Frac Inefficiency =",frac_eff),cex = 1,col='blue')
+    mtext(side = 3, line = -13, adj = 0.8, paste("Ratio =",eff_ratio),cex = 1.5,col='black')
+    legend(x=xlim[2]*0.7,y=0.25,c("RB","Fraction"),c("red","blue"))    
+}
+
+plot_study_estimates_M = function(rb,frac,barwidth,x_max=1){
+    rb_est = rb$sims
+    frac_est = frac$sims
+
+    breaks = (seq(0,max(c(rb_est,frac_est))+2*barwidth,by=barwidth)-barwidth/2)
+
+    p1 = hist(rb_est,breaks=breaks,plot=F)
+    p1$counts=p1$counts/sum(p1$counts)
+    p2 = hist(frac_est,breaks=breaks,plot=F)
+    p2$counts=p2$counts/sum(p2$counts)
+
+    q1 = p1$breaks[which(cumsum(p1$counts)>=x_max)[1]+1]
+    q2 = p2$breaks[which(cumsum(p2$counts)>=x_max)[1]+1]
+    xlim = c(-barwidth/2,max(c(q1,q2)))
+
+    plot(p1,main='Estimates of likelihood',xlab='Likelihood',ylab='Probability Distribution',xlim=xlim,ylim=c(0,1),
+    cex.lab=1.5,cex.main=1.5,cex.axis=1.5,yaxt='n',col=rgb(1,0,0,1/4))
+    plot(p2,xlim=xlim,ylim=c(0,1),add=T,col=rgb(0,0,1,1/4))
+    axis(2,cex.axis=1.5)
+
+    abline(v=mean(rb_est),col=rgb(1,0,0,1/4),lty='dashed')
+    abline(v=mean(frac_est),col=rgb(0,0,1,1/4),lty='dashed')
+
+    times_rb = rb$times
+    times_frac = frac$times
+    rb_eff = formatC(var(rb_est)*sum(times_rb),format='e')
+    frac_eff = formatC(var(frac_est)*sum(times_frac),format='e')
+    eff_ratio = round((var(frac_est)*sum(times_frac))/(var(rb_est)*sum(times_rb)),2)
+
+    mtext(side = 3, line = 0.25, adj = 0.5, paste("M =",M),cex = 1.5)
+    mtext(side = 3, line = -10, adj = 0.8, paste("RB Inefficiency =",rb_eff),cex = 1,col='red')
+    mtext(side = 3, line = -11, adj = 0.8, paste("Frac Inefficiency =",frac_eff),cex = 1,col='blue')
+    mtext(side = 3, line = -13, adj = 0.8, paste("Ratio =",eff_ratio),cex = 1.5,col='black')
+    legend(x=xlim[2]*0.7,y=0.25,c("RB","Fraction"),c("red","blue"))
+}
+
+plot_study_estimates_goal = function(rb,frac,barwidth,x_max=1,goal){
+    rb_est = rb$sims
+    frac_est = frac$sims
+
+    breaks = (seq(0,max(c(rb_est,frac_est))+2*barwidth,by=barwidth)-barwidth/2)
+    p1 = hist(rb_est,breaks=breaks,plot=F)
+    p1$counts=p1$counts/sum(p1$counts)
+    p2 = hist(frac_est,breaks=breaks,plot=F)
+    p2$counts=p2$counts/sum(p2$counts)
+
+    q1 = p1$breaks[which(cumsum(p1$counts)>=x_max)[1]+1]
+    q2 = p2$breaks[which(cumsum(p2$counts)>=x_max)[1]+1]
+    xlim = c(-barwidth/2,max(c(q1,q2)))
+
+    plot(p1,main='Estimates of likelihood',xlab='Likelihood',ylab='Probability Distribution',xlim=xlim,ylim=c(0,1),
+    cex.lab=1.5,cex.main=1.5,cex.axis=1.5,yaxt='n',col=rgb(1,0,0,1/4))
+    plot(p2,xlim=xlim,ylim=c(0,1),add=T,col=rgb(0,0,1,1/4))
+    axis(2,cex.axis=1.5)
+
+    abline(v=mean(rb_est),col=rgb(1,0,0,1/4),lty='dashed')
+    abline(v=mean(frac_est),col=rgb(0,0,1,1/4),lty='dashed')
+
+    times_rb = rb$times
+    times_frac = frac$times
+    rb_eff = formatC(var(rb_est)*sum(times_rb),format='e')
+    frac_eff = formatC(var(frac_est)*sum(times_frac),format='e')
+    eff_ratio = round((var(frac_est)*sum(times_frac))/(var(rb_est)*sum(times_rb)),2)
+    achieved = round(1-var(rb_est)/var(frac_est),2)
+
+    mtext(side = 3, line = 0.25, adj = 0.5, paste("goal =",goal),cex = 1.5)
+    mtext(side = 3, line = -1, adj = 0.5, paste("achieved =",achieved),cex = 1.5)
+    mtext(side = 3, line = -10, adj = 0.8, paste("RB Inefficiency =",rb_eff),cex = 1,col='red')
+    mtext(side = 3, line = -11, adj = 0.8, paste("Frac Inefficiency =",frac_eff),cex = 1,col='blue')
+    mtext(side = 3, line = -13, adj = 0.8, paste("Ratio =",eff_ratio),cex = 1.5,col='black')
+    legend(x=xlim[2]*0.7,y=0.25,c("RB","Fraction"),c("red","blue"))    
+}
+
+plot_study_estimates_M_time = function(rb_sims,frac_sims,num_quants=10){
+    rb_times = rb_sims$times
+    frac_times = frac_sims$times
+    
+    quants = seq(0,0.95,length.out=num_quants)
+    ymin = min(quantile(rb_times,min(quants)),quantile(frac_times,min(quants)))
+    ymax = max(quantile(rb_times,max(quants)),quantile(frac_times,max(quants)))
+
+    plot(quantile(rb_times,quants),quants, col='red',type='l',xlim=c(ymin,ymax),main='ECDF of time per iteration',ylab='Quantiles (0-0.95)',xlab='Time',
+    cex.lab=1.5,cex.main=1.5,cex.axis=1.5)
+    lines(quantile(frac_times,quants),quants,type='l',col='blue')
+    abline(v=mean(rb_times),lty='dashed',col='red')
+    abline(v=mean(frac_times),lty='dashed',col='blue')
+}
 
