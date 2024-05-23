@@ -286,7 +286,7 @@ const double &mu, const double &var){
   double s = tout - tau;
   double pvr1;
   double Q1 = 1;
-  pvr1 = R::dnorm(target,start+mu*tout,sqrt(var*tout),0) - 1/sqrt(4*M_PI*var*tau)*R::dnorm(target,start+mu*tout,sqrt(var*(s+tau/2)),0);
+  pvr1 = R::dnorm(target,start+mu*tout,sqrt(var*tout),0) - 1/sqrt(4*M_PI*var*tau)*R::dnorm(target,start+mu*tout,sqrt(var*(tout-tau/2)),0);
   Q1 *= pvr1;
   return(Q1);
 }
@@ -348,8 +348,11 @@ const double &pvr_goal){
   Rcpp::NumericVector expected_jump = get_expected_jump(model_name,start,thetas);
   int counter;
   for(int i=0;i<number_species;++i){
-    p[i] = get_probability_hit(start[i],target[i],tout,mu[i],sqrt(var[i]));
-    Q1[i] = get_Q1_brownian_fast(expected_jump[i],thetas,tout,tau,start[i],target[i],mu[i],var[i]);
+    // p[i] = get_probability_hit(start[i],target[i],tout,mu[i],sqrt(var[i]));
+    p[i] = 1/sqrt(2*M_PI*var[i]*tout)*exp(-0.5*(target[i]-(start[i]+mu[i]*tout))*(target[i]-(start[i]+mu[i]*tout))/(var[i]*tout)); 
+    // Q1[i] = get_Q1_brownian_fast(expected_jump[i],thetas,tout,tau,start[i],target[i],mu[i],var[i]);
+    Q1[i] = get_Q1_brownian_fast(0.0,thetas,tout,tau,start[i],target[i],mu[i],var[i]);
+    // double goal = Q1[i]*(1 - 1/(2-pvr_goal));
     double goal = Q1[i]*(1 - pvr_goal)/2;
     counter = 0;
     while(true){
@@ -387,8 +390,73 @@ const double &pvr_goal){
     Q2_ *= Q2[i];
     Q3_ *= Q3[i];
   }
-  Rcpp::DataFrame results = Rcpp::DataFrame::create(Rcpp::Named("lower")=lower,Rcpp::Named("upper")=upper,Rcpp::Named("scale")=p*(1-p)/(Q1*(1-Q1)));
+  std::cout<<"Q1:"<<Q1<<std::endl;
+  std::cout<<"p:"<<p_<<std::endl;
+  Rcpp::DataFrame results = Rcpp::DataFrame::create(Rcpp::Named("lower")=lower,Rcpp::Named("upper")=upper,Rcpp::Named("estimated_PVR_inf_box")=(Q1)/(p_*(1-p_)));
   return(results);
+}
+
+//[[Rcpp::export]]
+double get_var_big_box_tau(const std::string &model_name, const Rcpp::NumericVector &start, const Rcpp::NumericVector &thetas, 
+const Rcpp::NumericVector &target, const double &tout, const double tau){
+  double mu = get_mu(model_name,start,thetas)[0];
+  double sig2 = get_var(model_name,start,thetas)[0];
+  double RB_variance = 1/sqrt(4*M_PI*sig2*tau)*1/sqrt(2*M_PI*sig2*(tout-tau*0.5))*exp(-0.5*(target[0]-(start[0]+mu*tout))*(target[0]-(start[0]+mu*tout))/(sig2*(tout-tau*0.5)))-
+    1/(2*M_PI*sig2*tout)*exp(-0.5*(target[0]-start[0]-mu*tout)*(target[0]-start[0]-mu*tout)/(sig2*tout/2));
+  double p = 1/sqrt(2*M_PI*sig2*tout)*exp(-0.5*(target[0]-start[0]-mu*tout)*(target[0]-start[0]-mu*tout)/(sig2*tout));
+  if(RB_variance>p*(1-p)){
+    RB_variance = p*(1-p);
+  }
+  return(RB_variance);
+}
+
+//[[Rcpp::export]]
+double get_PVR_big_box_tau(const std::string &model_name, const Rcpp::NumericVector &start, const Rcpp::NumericVector &thetas, 
+const Rcpp::NumericVector &target, const double &tout, const double tau){
+  double mu = get_mu(model_name,start,thetas)[0];
+  double sig2 = get_var(model_name,start,thetas)[0];
+  double RB_variance = 1/sqrt(4*M_PI*sig2*tau)*1/sqrt(2*M_PI*sig2*(tout-tau/2))*exp(-0.5*(target[0]-(start[0]+mu*tout))*(target[0]-(start[0]+mu*tout))/(sig2*(tout-tau/2)))-
+    1/(2*M_PI*sig2*tout)*exp(-0.5*(target[0]-start[0]-mu*tout)*(target[0]-start[0]-mu*tout)/(sig2*tout/2));
+  double p = 1/sqrt(2*M_PI*sig2*tout)*exp(-0.5*(target[0]-start[0]-mu*tout)*(target[0]-start[0]-mu*tout)/(sig2*tout));
+  double PVR = (p*(1-p)-RB_variance)/(p*(1-p));
+  if(PVR<0){
+    PVR = 0;
+  }
+  return(PVR);
+}
+
+int sign(const double &x){
+  if (x > 0) return 1;
+  if (x < 0) return -1;
+  return 0;
+}
+
+//[[Rcpp::export]]
+double get_tau(const std::string &model_name, const Rcpp::NumericVector &start, const Rcpp::NumericVector &thetas, 
+const Rcpp::NumericVector &target, const double &tout, const double &goal){
+  double a = 0;
+  double b = 1;
+  double tol=0.00001;
+  double tau;
+  int counter = 0;
+  while (abs(b - a) > tol){
+    tau = (a + b) / 2;
+    if(get_PVR_big_box_tau(model_name,start,thetas,target,tout,tau) == goal){
+      return(tau);
+    }
+    if(sign(get_PVR_big_box_tau(model_name,start,thetas,target,tout,a)-goal) == sign(get_PVR_big_box_tau(model_name,start,thetas,target,tout,tau)-goal)){
+      a = tau;
+    }
+    else{
+      b = tau;
+    }
+    counter += 1;
+    if(counter>1000){
+      std::cout<<"WARNING: TAU NOT FOUND. A:"<<a<<",B:"<<b<<std::endl;
+      return(-1);
+    }
+  }
+  return(b);
 }
 
 // Rcpp::DataFrame get_box_brownian_fast(const std::string &model_name, const Rcpp::NumericVector &thetas, 
