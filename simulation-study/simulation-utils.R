@@ -240,10 +240,13 @@ plot_study_estimates_goal = function(rb,frac,barwidth,x_max=1,goal){
 }
 
 plot_study_estimates_generic = function(rb,frac,barwidth,x_max=1,subtitle){
+    rb$sims = exp(rb$sims)
+    frac$sims = exp(frac$sims)
+
     rb_est = rb$sims
     frac_est = frac$sims
 
-    breaks = (seq(0,max(c(rb_est,frac_est))+2*barwidth,by=barwidth)-barwidth/2)
+    breaks = (seq(0,(max(c(rb_est,frac_est))+2*barwidth),by=barwidth)-barwidth/2)
     p1 = hist(rb_est,breaks=breaks,plot=F)
     p1$counts=p1$counts/sum(p1$counts)
     p2 = hist(frac_est,breaks=breaks,plot=F)
@@ -414,6 +417,9 @@ get_row_data = function(model_name,lower_list,upper_list,theta,tau,tout_list,x,o
 }
 
 plot_tables = function(model_name,lower_list,upper_list,theta,tau,tout_list,x,obs_list,lower_limit_list,upper_limit_list,M,N,rb_sims,frac_sims){
+    rb_sims$sims = exp(rb_sims$sims)
+    frac_sims$sims = exp(frac_sims$sims)
+
     row_names = get_row_names()
     row_names_a = row_names$a
     row_names_b = row_names$b
@@ -426,29 +432,29 @@ plot_tables = function(model_name,lower_list,upper_list,theta,tau,tout_list,x,ob
     add_table("Results via simulation",row_names_b,row_data_b,x=-0.3,y=0.65,cex=1.2,text.width=strwidth(toString(rep('1',12))),x.intersp=8.1)    
 }
 
-get_var_big_box_tau = function(model_name,x0,theta,xt,tout,tau){
-  mu = get_mu(model_name,x0,theta)
-  sig2 = get_var(model_name,x0,theta)
-  RB_variance = 1/sqrt(4*pi*sig2*tau)*1/sqrt(2*pi*sig2*(tout-tau/2))*exp(-1/2*(xt-(x0+mu*tout))^2/(sig2*(tout-tau/2)))-
-    1/(2*pi*sig2*tout)*exp(-1/2*(xt-x0-mu*tout)^2/(sig2*tout/2))
-  return(RB_variance)
-  # p = get_probability_hit(x,obs,tout,0,sqrt(60))
-  # Q1 = get_Q1_brownian_fast(0, theta, tout, 0.1, x, obs, 0, 60)
-  # return(p*(1-p)-Q1)
-}
+# get_var_big_box_tau = function(model_name,x0,theta,xt,tout,tau){
+#   mu = get_mu(model_name,x0,theta)
+#   sig2 = get_var(model_name,x0,theta)
+#   RB_variance = 1/sqrt(4*pi*sig2*tau)*1/sqrt(2*pi*sig2*(tout-tau/2))*exp(-1/2*(xt-(x0+mu*tout))^2/(sig2*(tout-tau/2)))-
+#     1/(2*pi*sig2*tout)*exp(-1/2*(xt-x0-mu*tout)^2/(sig2*tout/2))
+#   return(RB_variance)
+#   # p = get_probability_hit(x,obs,tout,0,sqrt(60))
+#   # Q1 = get_Q1_brownian_fast(0, theta, tout, 0.1, x, obs, 0, 60)
+#   # return(p*(1-p)-Q1)
+# }
 
-get_PVR_big_box_tau = function(model_name,x0,theta,xt,tout,tau){
-  mu = get_mu(model_name,x0,theta)
-  sig2 = get_var(model_name,x0,theta)
-  RB_variance = 1/sqrt(4*pi*sig2*tau)*1/sqrt(2*pi*sig2*(tout-tau/2))*exp(-1/2*(xt-(x0+mu*tout))^2/(sig2*(tout-tau/2)))-
-  1/(2*pi*sig2*tout)*exp(-1/2*(xt-x0-mu*tout)^2/(sig2*tout/2))
-  p = 1/sqrt(2*pi*sig2*tout)*exp(-1/2*(xt-x0-mu*tout)^2/(sig2*tout))
-  PVR = (p*(1-p)-RB_variance)/(p*(1-p))
-  return(PVR)
-  # p = get_probability_hit(x,obs,tout,0,sqrt(60))
-  # Q1 = get_Q1_brownian_fast(0, theta, tout, 0.1, x, obs, 0, 60)
-  # return(Q1/(p*(1-p)))
-}
+# get_PVR_big_box_tau = function(model_name,x0,theta,xt,tout,tau){
+#   mu = get_mu(model_name,x0,theta)
+#   sig2 = get_var(model_name,x0,theta)
+#   RB_variance = 1/sqrt(4*pi*sig2*tau)*1/sqrt(2*pi*sig2*(tout-tau/2))*exp(-1/2*(xt-(x0+mu*tout))^2/(sig2*(tout-tau/2)))-
+#   1/(2*pi*sig2*tout)*exp(-1/2*(xt-x0-mu*tout)^2/(sig2*tout/2))
+#   p = 1/sqrt(2*pi*sig2*tout)*exp(-1/2*(xt-x0-mu*tout)^2/(sig2*tout))
+#   PVR = (p*(1-p)-RB_variance)/(p*(1-p))
+#   return(PVR)
+#   # p = get_probability_hit(x,obs,tout,0,sqrt(60))
+#   # Q1 = get_Q1_brownian_fast(0, theta, tout, 0.1, x, obs, 0, 60)
+#   # return(Q1/(p*(1-p)))
+# }
 
 plot_var_big_box_tau = function(model_name,x,theta,obs,tout){
     taus = seq(0,tout,length.out=1000)[-1]
@@ -470,7 +476,7 @@ plot_PVR_big_box_tau = function(model_name,x,theta,obs,tout){
     plot(taus,best_variance,type='l',xlab='Tau',ylab='Infinite box PVR',cex=1.5,cex.axis=1.5,cex.lab=1.5)
 }
 
-plot_PVR_target_goal_brownian = function(model_name,x,theta,obs,tout,width=50){
+plot_PVR_target_goal_tau = function(model_name,x,theta,obs,tout,width=50){
     M = 100
     goals = seq(0,1,length.out=M)[-M]
     results = data.frame(matrix(ncol=3,nrow=0))
@@ -493,10 +499,139 @@ plot_PVR_target_goal_brownian = function(model_name,x,theta,obs,tout,width=50){
         )
     }
     plot(goals,results$PVR_exact,type='l',main='Infinite Box PVR',xlab='Target',ylab='Achieved',cex=1.5,cex.axis=1.5,cex.lab=1.5,xlim=c(0,1),ylim=c(0,1))
-    abline(a=0,b=1,lty='dashed')
+    lines(goals,results$PVR_est,lty='dashed')
+    # abline(a=0,b=1,lty='dashed')
     newresults = results[seq(1,nrow(results),ceiling(M/10)),]
     newgoals = goals[seq(1,nrow(results),ceiling(M/10))]    
     points(newgoals,newresults$PVR_exact)
-    text(newgoals,newresults$PVR_exact,paste("tau =",signif(newresults$tau,3)),pos=1)
+    text(newgoals,newresults$PVR_exact,paste("tau =",signif(newresults$tau,3)),pos=1,cex=0.8)
+    legend(x=0.1,y=0.9,c("Exact","Brownian"),lty = c("solid","dashed"))
 }
 
+plot_PVR_target_goal_width = function(model_name,x,theta,obs,tout,tau,width=50){
+    M = 100
+    goals = seq(0,1,length.out=M)[-M]
+    results = data.frame(matrix(ncol=3,nrow=0))
+    colnames(results) = c("PVR_est","tau","PVR_exact")
+
+    obs_list = matrix(obs,nrow=1)
+    lower_limit_list = get_lower(model_name, obs_list,width)
+    upper_limit_list = get_upper(model_name, obs_list,width)
+    tout_list = c(tout)
+
+    for(i in 1:length(goals)){
+        box = get_box(model_name,theta,tout_list,tau,x,obs_list,goals[i])
+        lower_list = box$lower
+        upper_list = box$upper
+        results[i,] = c(
+            get_PVR_big_box_tau(model_name,x,theta,obs,tout,tau),
+            tau,
+            get_PVR("BDI",lower_list,upper_list,theta,tau,tout_list,x,obs_list,lower_limit_list,upper_limit_list,1)$PVR_tout
+        )
+    }
+    plot(goals,results$PVR_exact,type='l',main=paste('Box PVR given tau =',tau),xlab='Target',ylab='Achieved',cex=1.5,cex.axis=1.5,cex.lab=1.5,xlim=c(0,1),ylim=c(0,1))
+    lines(c(0,1),c(0,tail(results$PVR_est,1)),lty='dashed')
+    # abline(a=0,b=1,lty='dashed')
+    newresults = results[seq(1,nrow(results),ceiling(M/10)),]
+    newgoals = goals[seq(1,nrow(results),ceiling(M/10))]    
+    legend(x=0.1,y=0.9,c("Exact","Brownian"),lty = c("solid","dashed"))
+}
+
+plot_PVR_target_goal = function(model_name,x,theta,obs,tout,width=50){
+    M = 100
+    goals = seq(0,1,length.out=M)[-M]
+    results = data.frame(matrix(ncol=3,nrow=0))
+    colnames(results) = c("PVR_est","tau","PVR_exact")
+
+    obs_list = matrix(obs,nrow=1)
+    lower_limit_list = get_lower(model_name, obs_list,width)
+    upper_limit_list = get_upper(model_name, obs_list,width)
+    tout_list = c(tout)
+
+    for(i in 1:length(goals)){
+        tau = get_tau(model_name,x,theta,obs,tout,sqrt(goals[i]))
+        box = get_box(model_name,theta,tout_list,tau,x,obs_list,sqrt(goals[i]))
+        lower_list = box$lower
+        upper_list = box$upper
+        results[i,] = c(
+            get_PVR_big_box_tau(model_name,x,theta,obs,tout,tau),
+            tau,
+            get_PVR("BDI",lower_list,upper_list,theta,tau,tout_list,x,obs_list,lower_limit_list,upper_limit_list,1)$PVR_tout
+        )
+    }
+    plot(goals,results$PVR_exact,type='l',main='PVR',xlab='Target',ylab='Achieved',cex=1.5,cex.axis=1.5,cex.lab=1.5,xlim=c(0,1),ylim=c(0,1))
+    lines(goals,results$PVR_est*sqrt(goals),lty='dashed')
+    # abline(a=0,b=1,lty='dashed')
+    newresults = results[seq(1,nrow(results),ceiling(M/10)),]
+    newgoals = goals[seq(1,nrow(results),ceiling(M/10))]    
+    points(newgoals,newresults$PVR_exact,cex=1)
+    text(newgoals,newresults$PVR_exact,paste("tau =",signif(newresults$tau,3)),pos=1,cex=0.8)
+    legend(x=0.1,y=0.9,c("Exact","Brownian"),lty = c("solid","dashed"))
+}
+
+plot_smooth_box = function(model_name,x,theta,obs,tout,taus,goal,colour){
+    l = rep(0,length(taus))
+    u = rep(0,length(taus))
+    for(i in 1:length(taus)){
+            box = get_box_brownian_fast(model_name,theta,tout,taus[i],x,obs,goal)
+            l[i] = box$lower
+            u[i] = box$upper
+    }
+    q = c(1,which(diff(l)<0)+1)
+    r = c(1,which(diff(u)>0)+1)
+    for(i in 1:(length(q))){
+            lines(c(tout-taus[q[i]],tout-taus[q[i+1]]),c(l[q[i]],l[q[i+1]]),lwd=2,type='o',col=colour)
+    }
+    lines(c(0,tout-taus[q[length(q)]]),c(l[q[length(q)]],l[q[length(q)]]),lwd=2,type='o',col=colour)
+
+    for(i in 1:(length(r))){
+            lines(c(tout-taus[r[i]],tout-taus[r[i+1]]),c(u[r[i]],u[r[i+1]]),lwd=2,type='o',col=colour)
+    }
+    lines(c(0,tout-taus[r[length(r)]]),c(u[r[length(r)]],u[r[length(r)]]),lwd=2,type='o',col=colour)
+}
+
+plot_smooth_box_changing_goal = function(model_name,x,theta,obs,tout,taus,goal,colour){
+    l = rep(0,length(taus))
+    u = rep(0,length(taus))
+    for(i in 1:length(taus)){
+            max_PVR = get_PVR_big_box_tau("BDI",x,theta,obs,tout,tau)
+            box = get_box_brownian_fast(model_name,theta,tout,taus[i],x,obs,max(1,goal/max_PVR))
+            l[i] = box$lower
+            u[i] = box$upper
+    }
+    q = c(1,which(diff(l)<0)+1)
+    r = c(1,which(diff(u)>0)+1)
+    for(i in 1:(length(q))){
+            lines(c(tout-taus[q[i]],tout-taus[q[i+1]]),c(l[q[i]],l[q[i+1]]),lwd=2,type='o',col=colour)
+    }
+    lines(c(0,tout-taus[q[length(q)]]),c(l[q[length(q)]],l[q[length(q)]]),lwd=2,type='o',col=colour)
+
+    for(i in 1:(length(r))){
+            lines(c(tout-taus[r[i]],tout-taus[r[i+1]]),c(u[r[i]],u[r[i+1]]),lwd=2,type='o',col=colour)
+    }
+    lines(c(0,tout-taus[r[length(r)]]),c(u[r[length(r)]],u[r[length(r)]]),lwd=2,type='o',col=colour)
+}
+obs = 110
+plot(x=-1,y=-1,xlim=c(0,tout),ylim=c(70,130))
+add_obs(tout,obs,'black')
+taus = seq(0,tout,length.out=1000)[-1]
+plot_smooth_box_changing_goal("BDI",x,theta,obs,tout,taus,0.9,'green')
+plot_smooth_box("BDI",x,theta,obs,tout,taus,sqrt(0.9),'black')
+
+get_PVR_big_box_tau("BDI",x,theta,obs,tout,0.4)
+0.9/get_PVR_big_box_tau("BDI",x,theta,obs,tout,0.4)
+get_box_brownian_fast("BDI",theta,tout,0.4,x,obs,0.9695)
+get_variance_brownian_fast("BDI",theta,tout,tau,x,obs,97,116)
+get_variance_brownian("BDI",theta,tout,1,x,obs,40,180)
+
+get_q = function(N,M){
+    results = rep(0,N)
+    for(i in 1:N){
+        results[i] = get_likelihood_RB("BDI",x,theta,obs_list,tout_list,M)
+    }
+    return(results)
+}
+
+get_ESJD = function(){
+
+}

@@ -82,6 +82,7 @@ Rcpp::NumericVector get_expected_jump(const std::string &model_name, const Rcpp:
   }  
   Rcpp::NumericVector v(num_species);
   for(int i=0;i<num_species;++i){
+    // v[i] = 1.28;
     v[i] = 1.28;
   }
   return(v);
@@ -135,10 +136,10 @@ const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper){
       beta[i] = get_below_minimum_sigma_wt(lower[j]-expected_jump[j]-state[j],mu[j],sig[j],target[j]-state[j],tau);
       delta[i] *= (alpha[i] + beta[i]);
     }
-    std::cout<<"a:"<<a<<std::endl;
-    std::cout<<"b:"<<b<<std::endl;
-    std::cout<<"d:"<<delta<<std::endl;
-    std::cout<<"p:"<<p<<std::endl;
+    // std::cout<<"a:"<<a<<std::endl;
+    // std::cout<<"b:"<<b<<std::endl;
+    // std::cout<<"d:"<<delta<<std::endl;
+    // std::cout<<"p:"<<p<<std::endl;
   }
 
   double percentage_variance_reduction = p*(1-p);
@@ -332,7 +333,7 @@ const double &lower, const double &mu, const double &var){
 }
 
 //[[Rcpp::export]]
-Rcpp::DataFrame get_box_brownian_fast(const std::string &model_name, const Rcpp::NumericVector &thetas, 
+Rcpp::List get_box_brownian_fast(const std::string &model_name, const Rcpp::NumericVector &thetas, 
 const double &tout, const double &tau, const Rcpp::NumericVector &start, const Rcpp::NumericVector &target,
 const double &pvr_goal){
   Rcpp::NumericVector mu = get_mu(model_name,start,thetas);
@@ -353,7 +354,9 @@ const double &pvr_goal){
     // Q1[i] = get_Q1_brownian_fast(expected_jump[i],thetas,tout,tau,start[i],target[i],mu[i],var[i]);
     Q1[i] = get_Q1_brownian_fast(0.0,thetas,tout,tau,start[i],target[i],mu[i],var[i]);
     // double goal = Q1[i]*(1 - 1/(2-pvr_goal));
-    double goal = Q1[i]*(1 - pvr_goal)/2;
+    // double goal = Q1[i]*(1 - pvr_goal)/2;
+    double goal = (p[i]*(1-p[i])-Q1[i])*(1 - pvr_goal)/(2*pvr_goal);
+    
     counter = 0;
     while(true){
       Q2[i] = get_Q2_brownian_fast(expected_jump[i],thetas,tout,tau,start[i],target[i],upper[i],mu[i],var[i]);
@@ -362,7 +365,7 @@ const double &pvr_goal){
       }
       upper[i] += 1;
       if((counter+=1)>100){
-        std::cout<<"WARNING: BIG BOX\n";
+        std::cout<<"WARNING: BIG BOX, theta:"<<thetas<<", "<<", x:"<<start[i]<<", target:"<<target[i]<<"\n";
         break;
       }
     }
@@ -374,7 +377,7 @@ const double &pvr_goal){
       }
       lower[i] -= 1;
       if((counter+=1)>100){
-        std::cout<<"WARNING: BIG BOX\n";
+        std::cout<<"WARNING: BIG BOX, theta:"<<thetas<<", "<<", x:"<<start[i]<<", target:"<<target[i]<<"\n";
         break;
       }
     }
@@ -390,10 +393,41 @@ const double &pvr_goal){
     Q2_ *= Q2[i];
     Q3_ *= Q3[i];
   }
-  std::cout<<"Q1:"<<Q1<<std::endl;
-  std::cout<<"p:"<<p_<<std::endl;
-  Rcpp::DataFrame results = Rcpp::DataFrame::create(Rcpp::Named("lower")=lower,Rcpp::Named("upper")=upper,Rcpp::Named("estimated_PVR_inf_box")=(Q1)/(p_*(1-p_)));
+  Rcpp::List results = Rcpp::List::create(Rcpp::Named("lower")=lower,Rcpp::Named("upper")=upper,Rcpp::Named("estimated_PVR_inf_box")=(Q1)/(p_*(1-p_)));
   return(results);
+}
+
+//[[Rcpp::export]]
+Rcpp::List get_box_brownian_fast_list(const std::string &model_name, const Rcpp::NumericVector &thetas, 
+const Rcpp::NumericVector &tout_list, const Rcpp::NumericVector &tau_list, const Rcpp::NumericVector &start, const Rcpp::NumericMatrix &target_list,
+const double &pvr_goal){
+  int num_obs = tout_list.size();
+  int num_species = start.size();
+  double tout;
+  double tau;
+  double prev_tout=0;
+  Rcpp::NumericVector x = start;
+  Rcpp::NumericVector obs(num_species);
+  Rcpp::NumericMatrix lower_list(num_obs,num_species);
+  Rcpp::NumericMatrix upper_list(num_obs,num_species);
+  Rcpp::NumericVector lower(num_species);
+  Rcpp::NumericVector upper(num_species);
+  Rcpp::DataFrame box;
+  for(int i=0;i<num_obs;++i){
+    tout = tout_list[i]-prev_tout;
+    tau = tau_list[i];    
+    obs = target_list(i,Rcpp::_);
+    box = get_box_brownian_fast(model_name,thetas,tout,tau,x,obs,pvr_goal);
+    lower = box["lower"];
+    upper = box["upper"];
+    lower_list(i,Rcpp::_) = lower;
+    upper_list(i,Rcpp::_) = upper;
+    x = clone(obs);
+    prev_tout = tout_list[i];
+  }
+  Rcpp::List list = Rcpp::List::create(Rcpp::Named("lower")=lower_list, Rcpp::Named("upper")=upper_list );
+  // Rcpp::List list = Rcpp::List::create(Rcpp::Named("lower")=0, Rcpp::Named("upper")=0 );
+  return(list);
 }
 
 //[[Rcpp::export]]
@@ -435,7 +469,7 @@ int sign(const double &x){
 double get_tau(const std::string &model_name, const Rcpp::NumericVector &start, const Rcpp::NumericVector &thetas, 
 const Rcpp::NumericVector &target, const double &tout, const double &goal){
   double a = 0;
-  double b = 1;
+  double b = tout;
   double tol=0.00001;
   double tau;
   int counter = 0;
@@ -458,6 +492,26 @@ const Rcpp::NumericVector &target, const double &tout, const double &goal){
   }
   return(b);
 }
+
+//[[Rcpp::export]]
+Rcpp::NumericVector get_tau_list(const std::string &model_name, const Rcpp::NumericVector &start, const Rcpp::NumericVector &thetas, 
+const Rcpp::NumericMatrix &obs_list, const Rcpp::NumericVector &tout_list, const double &goal){
+  int num_obs = obs_list.size();
+  Rcpp::NumericVector target(num_obs);
+  Rcpp::NumericVector x = start;
+  Rcpp::NumericVector tau_list(num_obs);
+  double tout;
+  double prev_tout=0;
+  for(int i=0;i<num_obs;++i){
+    target = obs_list(i,Rcpp::_);
+    tout = tout_list[i];
+    tau_list[i] = get_tau(model_name,x,thetas,target,tout-prev_tout,goal);
+    x = clone(target);
+    prev_tout=tout;
+  }
+  return(tau_list);
+}
+
 
 // Rcpp::DataFrame get_box_brownian_fast(const std::string &model_name, const Rcpp::NumericVector &thetas, 
 // const double &tout, const double &tau, const Rcpp::NumericVector &start, const Rcpp::NumericVector &target,

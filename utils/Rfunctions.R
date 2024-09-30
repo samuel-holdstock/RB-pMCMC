@@ -43,10 +43,10 @@ add_chain = function(chain,species,colours,...){
     }
 }
 
-add_box = function(lower,upper,tout,tau,colours){
+add_box = function(lower,upper,tout,tau,colours,...){
     nboxes = length(lower)
     for(i in 1:nboxes){
-        lines(c(tout,tout-tau,tout-tau,tout),c(upper[i],upper[i],lower[i],lower[i]),col=colours[i],lwd=1.5)
+        lines(c(tout,tout-tau,tout-tau,tout),c(upper[i],upper[i],lower[i],lower[i]),col=colours[i],lwd=3)
     }
 }
 
@@ -60,7 +60,7 @@ add_box_goal = function(model_name,goal,theta,x,obs,tout,tau,colours){
 add_obs = function(tout,obs,colours){
     npoints = length(obs)
     for(i in 1:npoints){
-        points(tout,obs[i],col=colours[i],pch=4,cex=2)
+        points(tout,obs[i],col=colours[i],pch=4,cex=3)
     }
 }
 

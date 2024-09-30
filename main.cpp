@@ -107,43 +107,32 @@ double RB(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVec
 
 //[[Rcpp::export]]
 double RB_list(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, Rcpp::NumericVector tout_list,
-                  const Rcpp::NumericMatrix &lower_list, const Rcpp::NumericMatrix &upper_list, double tau,
+                  const Rcpp::NumericMatrix &lower_list, const Rcpp::NumericMatrix &upper_list, Rcpp::NumericVector tau_list,
                   const Rcpp::NumericMatrix &obs_list, int M){
-  std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> rates_function = get_rate_function(str);
-  Rcpp::NumericMatrix S = get_S(str);
   int num_obs = tout_list.size();
-  Rcpp::NumericVector lower;
-  Rcpp::NumericVector upper;
-  Rcpp::NumericVector obs;
+  int num_species = x0.size();
+  Rcpp::NumericVector lower(num_species);
+  Rcpp::NumericVector upper(num_species);
+  Rcpp::NumericVector obs(num_species);
   double tout;
-  Rcpp::NumericMatrix Q;
-  arma::mat P;
-  Rcpp::List estimate;
-  Rcpp::NumericVector estimator(num_obs);
+  double tau;
   Rcpp::NumericVector x = clone(x0);
   double prev_time = 0;
+  double log_prob = 0;
   for(int i=0; i<num_obs; ++i){
     lower = lower_list(i,Rcpp::_);
     upper = upper_list(i,Rcpp::_);
     obs = obs_list(i,Rcpp::_);
     tout = tout_list(i)-prev_time;
-    Q = Rcpp::transpose(get_coffin_matrix(str,lower,upper,theta));
-    arma::mat v(Q.nrow(),1);    
-    int obs_index = state_to_index(obs,lower,upper);
-    v[obs_index] = 1;
-    P = vT_exp_Q(v,Q*tau,1e-20,false,true,false);
-    for(int j=0;j<M;++j){
-      estimate = run_algorithm(str,x,theta, tout, lower, upper, tau);
-      estimator[i] += get_estimate(estimate,lower,upper,P,obs);
+    tau = tau_list[i];
+    log_prob += log(RB(str,x,theta,tout,lower,upper,tau,obs,M));
+    if(isinf(log_prob)){
+      return(log_prob);
     }
     x = clone(obs);
-    prev_time = tout;
+    prev_time = tout_list(i);
   }
-  double prob = 1;
-  for(int i=0; i<num_obs; ++i){
-    prob *= estimator[i]/M;
-  }
-  return(prob);
+  return(log_prob);
 }
 
 //[[Rcpp::export]]
@@ -163,27 +152,24 @@ double frac(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericV
 //[[Rcpp::export]]
 double frac_list(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, Rcpp::NumericVector tout_list,
                   const Rcpp::NumericMatrix &obs_list, int M){
-  std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> rates_function = get_rate_function(str);
-  Rcpp::NumericMatrix S = get_S(str);
-  Rcpp::List estimate;
   int num_obs = tout_list.size();
-  Rcpp::NumericVector estimator(num_obs);
+  int num_species = x0.size();
+  Rcpp::NumericVector obs(num_species);
+  double tout;
   Rcpp::NumericVector x = clone(x0);
-  Rcpp::NumericVector obs;
   double prev_time = 0;
-  for(int i=0;i<num_obs;++i){  
+  double log_prob = 0;
+  for(int i=0; i<num_obs; ++i){
     obs = obs_list(i,Rcpp::_);
-    for(int j=0;j<M;++j){
-      estimate = run_algorithm_frac(str,x,theta, tout_list(i)-prev_time);
-      estimator[i] += get_estimate_frac(estimate,obs);
+    tout = tout_list(i)-prev_time;
+    log_prob += log(frac(str,x,theta,tout,obs,M));
+    if(isinf(log_prob)){
+      return(log_prob);
     }
     x = clone(obs);
     prev_time = tout_list(i);
   }
-  double prob = 1;
-  for(int i=0;i<num_obs;++i){
-    prob *= estimator[i]/M;
-  }
-  return(prob);
+  return(log_prob);
 }
+
 

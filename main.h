@@ -11,6 +11,7 @@
 #include "rates.h"
 #include "brownian.h"
 #include "exact.h"
+#include "mcmc.h"
 
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
@@ -45,6 +46,10 @@ double RB(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVec
                   const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper, double tau,
                   const Rcpp::NumericVector &obs, int M);
 
+double RB_list(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, Rcpp::NumericVector tout_list,
+                  const Rcpp::NumericMatrix &lower_list, const Rcpp::NumericMatrix &upper_list, Rcpp::NumericVector tau,
+                  const Rcpp::NumericMatrix &obs_list, int M);
+                  
 double frac(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, double tout,
                   const Rcpp::NumericVector &obs, int M);
 

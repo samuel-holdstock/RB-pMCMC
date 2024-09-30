@@ -37,9 +37,9 @@ obs_list = get_obs("BDI", x, theta, tout_list)
 box = get_box("BDI",theta,tout_list,tau,x,obs_list,0.9)
 lower_list = box$lower
 upper_list = box$upper
-plot_RB_MJP("BDI",x,theta,tout_list,lower_list,upper_list,tau,obs_list,30,c("Population"),c("blue"),c(80,120))
+
+plot_RB_MJP("BDI",x,theta,tout_list,lower_list,upper_list,tau,obs_list,30,c("Population"),c("blue"),c(50,150))
 
 get_box_brownian_fast("BDI",theta,tout,tau,x,obs,0.9)
 
 abline(a=x[1],b=get_mu("BDI",x,theta)[1])
-

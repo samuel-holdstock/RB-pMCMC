@@ -17,18 +17,33 @@ Rcpp::List gillespie_alg(const Rcpp::NumericVector &x0, const Rcpp::NumericVecto
   tnext=tcurr-log(R::runif(0,1))/rtot; // add Exp(rtot)
   Rcpp::NumericVector xttau_data;
   Rcpp::NumericVector xt_data;
-  bool inS=true;
   bool set_xttau = false;
+  int counter = 0;
+  bool inS=true;
+  for(int i=0; i<n_spec; ++i){
+    if (lower[i] > xcurr[i] || xcurr[i] > upper[i]){
+      inS = FALSE;
+      break;
+    }
+  }
 
   while (tnext<tout) {
+    counter+=1;
+    for(int i=0; i<n_spec; ++i){
+      if(counter>2400){
+        // std::cout<<"WARNING: GILLESPIE DIVERGE."<<std::endl;
+        Rcpp::List results = Rcpp::List::create(Rcpp::Named("xttau_data")=xcurr, Rcpp::Named("inS")=inS, Rcpp::Named("xt_data")=xcurr);
+        return(results);
+      }
+    }
     if (tcurr <= tout-tau && tout-tau < tnext){
       xttau_data = clone(xcurr);
       set_xttau  = true;
       for(int i=0; i<n_spec; ++i){
-          if (lower[i] > xcurr[i] || xcurr[i] > upper[i]){
-              inS = FALSE;
-              break;
-          }
+        if (lower[i] > xcurr[i] || xcurr[i] > upper[i]){
+          inS = FALSE;
+          break;
+        }
       }
     }
     tcurr=tnext;
@@ -140,8 +155,17 @@ Rcpp::List gillespie_alg_frac(const Rcpp::NumericVector &x0, const Rcpp::Numeric
   rtot=sum(r);
   tnext=tcurr-log(R::runif(0,1))/rtot; // add Exp(rtot)
   Rcpp::NumericVector xt_data;
+  int counter = 0;
   while (tnext<tout) {
     tcurr=tnext;
+    counter+=1;
+    for(int i=0; i<n_spec; ++i){
+      if(counter>2400){
+        // std::cout<<"WARNING: GILLESPIE DIVERGE."<<std::endl;
+        Rcpp::List results = Rcpp::List::create(Rcpp::Named("xt_data")=xt_data);
+        return(results);
+      }
+    }
     double u = R::runif(0,1);
     double cumtot = 0; 
     for(int i=0; i<n_react; ++i){

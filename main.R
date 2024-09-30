@@ -1,5 +1,6 @@
 source("utils/Rlibraries.R")
 sourceCpp("main.cpp")
+source("simulation-study/simulation-utils.R")
 
 source("examples/Gillespie/BDI.R")
 source("examples/Gillespie/SIR_N.R")
