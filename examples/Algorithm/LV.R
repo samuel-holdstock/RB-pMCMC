@@ -32,3 +32,14 @@ lower_list
 upper_list
 print(RB_multi_obs("LV", x, theta, tout_list, lower_list, upper_list, tau, obs_list, M))
 
+get_mu("LV",x,theta)
+get_mu2("LV",x,theta)
+
+get_var("LV",x,theta)
+get_var("LV",x,theta)%*%t(get_var("LV",x,theta))
+get_covar("LV",x,theta)
+
+matrixDeterimant(get_covar("LV",x,theta))
+matrixInverse(get_covar("LV",x,theta))
+matrixMultiply(get_covar("LV",x,theta),get_covar("LV",x,theta))
+get_covar("LV",x,theta)%*%get_covar("LV",x,theta)

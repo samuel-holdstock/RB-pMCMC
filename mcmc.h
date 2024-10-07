@@ -10,14 +10,14 @@
 //[[Rcpp::depends(RcppArmadillo)]]
 #include <Rcpp.h>
 
-Rcpp::NumericVector propose_psi(const Rcpp::NumericVector &theta);
-double get_likelihood_RB(const std::string &model_name, const Rcpp::NumericVector &start, const Rcpp::NumericVector &theta, 
-const Rcpp::NumericMatrix &obs_list, const Rcpp::NumericVector &tout_list, const int &num_particles);
-double get_likelihood_frac(const std::string &model_name, const Rcpp::NumericVector &start, const Rcpp::NumericVector &theta, 
-const Rcpp::NumericMatrix &obs_list, const Rcpp::NumericVector &tout_list, const int &num_particles);
-double frac_list(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, Rcpp::NumericVector tout_list,
-                  const Rcpp::NumericMatrix &obs_list, int M);
+arma::vec propose_psi(const arma::vec &theta);
+double get_likelihood_RB(const std::string &model_name, const arma::vec &start, const arma::vec &theta, 
+const arma::mat &obs_list, const arma::vec &tout_list, const int &num_particles);
+double get_likelihood_frac(const std::string &model_name, const arma::vec &start, const arma::vec &theta, 
+const arma::mat &obs_list, const arma::vec &tout_list, const int &num_particles);
+double frac_list(std::string str, const arma::vec &x0, const arma::vec &theta, arma::vec tout_list,
+                  const arma::mat &obs_list, int M);
 arma::mat mvrnormArma(int n, arma::mat sigma);
-double get_prior(const Rcpp::NumericVector log_theta);
+double get_prior(const arma::vec log_theta);
 
 #endif

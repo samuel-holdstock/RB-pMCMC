@@ -1,5 +1,17 @@
 source("examples/Parameters/LV/(N=100).R")
 
+get_mu("LV",x,theta)
+get_covar("LV",x,theta)
+get_MVT_density_hit(x,obs,tout,get_mu("LV",x,theta),get_covar("LV",x,theta))
+get_VRF_big_box_tau2("LV",x,theta,obs,tout,0.1)
+get_tau2("LV",x,theta,obs,tout,100)
+
+tau = get_tau2("LV",x,theta,obs,tout,10)
+tau = 0.1
+p = get_MVT_density_hit(x,obs,tout,get_mu("LV",x,theta),get_covar("LV",x,theta))
+E = monte_carlo_var_inf("LV", x, theta, obs, tout, tau, 0.0001, 10000)
+p*(1-p)/var(E)
+
 obs_index = state_to_index(obs,lower,upper)
 data = sim_data("LV",x,theta, tout, lower, upper, tau)$data
 data_chain = get_chain(data,tout)
@@ -28,4 +40,3 @@ as.numeric((obs_list - lower_list)[,1])
 
 abline(a=x[1],b=get_mu("LV",x,theta)[1])
 abline(a=x[2],b=get_mu("LV",x,theta)[2])
-

@@ -1,12 +1,29 @@
-source("examples/Parameters/BDI/Equilibrium (N=1000).R")
+source("examples/Parameters/BDI/Equilibrium (N=100).R")
+source("examples/Parameters/BDI/Drift/Drift (N=100).R")
+get_mu("BDI",x,theta)
+get_covar("BDI",x,theta)
 
-lower = c(990)
-upper = c(1010)
+get_probability_hit(x,obs,tout,20,sqrt(get_covar("BDI",x,theta)))
+get_density_hit(x,obs,tout,20,sqrt(get_covar("BDI",x,theta)))
+get_MVT_density_hit(x,obs,tout,get_mu("BDI",x,theta),get_covar("BDI",x,theta))
+get_VRF_big_box_tau("BDI",x,theta,obs,tout,0.9999)
+get_VRF_big_box_tau2("BDI",x,theta,obs,tout,0.9999)
+
+get_tau("BDI",x,theta,obs,tout,30)
+get_tau2("BDI",x,theta,obs,tout,30)
+
+p = get_MVT_density_hit(x,obs,tout,get_mu("BDI",x,theta),get_covar("BDI",x,theta))
+E = monte_carlo_var_inf("BDI", x, theta, obs, tout, tau, 0.0001, 10000)
+p*(1-p)/var(E)
+
+
+lower = c(90)
+upper = c(110)
 tau = 0.1
 obs_index = state_to_index(obs,lower,upper)
 data = sim_data("BDI",x,theta, tout, lower, upper, tau)$data
 data_chain = get_chain(data,tout)
-plot_chain(data_chain,c("Population"),c("blue"),ylim=c(920,1080))
+plot_chain(data_chain,c("Population"),c("blue"),ylim=c(50,150))
 add_box(lower,upper,tout,tau,"blue")
 add_obs(tout,obs,"blue")
 
@@ -43,3 +60,5 @@ plot_RB_MJP("BDI",x,theta,tout_list,lower_list,upper_list,tau,obs_list,30,c("Pop
 get_box_brownian_fast("BDI",theta,tout,tau,x,obs,0.9)
 
 abline(a=x[1],b=get_mu("BDI",x,theta)[1])
+
+get_mu("BDI",x,theta)

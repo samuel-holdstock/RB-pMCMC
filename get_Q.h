@@ -3,32 +3,32 @@
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 
-void calculate_Q(Rcpp::NumericVector upper, Rcpp::NumericVector lower);
+void calculate_Q(arma::vec upper, arma::vec lower);
 
 //[[Rcpp::export]]
 int state_to_index(
-Rcpp::NumericVector state,
-Rcpp::NumericVector lower,
-Rcpp::NumericVector upper);
+arma::vec state,
+arma::vec lower,
+arma::vec upper);
 
 //[[Rcpp::export]]
-Rcpp::NumericVector index_to_state(
+arma::vec index_to_state(
 int index,
-Rcpp::NumericVector lower,
-Rcpp::NumericVector upper);
+arma::vec lower,
+arma::vec upper);
 
-Rcpp::NumericMatrix Qmat(
-Rcpp::NumericVector lower,
-Rcpp::NumericVector upper,
-Rcpp::NumericVector theta,
-Rcpp::NumericMatrix S,
-std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> rates_function
+arma::mat Qmat(
+arma::vec lower,
+arma::vec upper,
+arma::vec theta,
+arma::mat S,
+std::function<arma::vec(const arma::vec &x, const arma::vec &theta)> rates_function
 );
 
 bool inBox(
-Rcpp::NumericVector state,
-Rcpp::NumericVector lower,
-Rcpp::NumericVector upper
+arma::vec state,
+arma::vec lower,
+arma::vec upper
 );
 
 #endif

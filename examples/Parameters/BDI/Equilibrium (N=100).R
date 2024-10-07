@@ -11,7 +11,7 @@ obs = c(100)
 lower_limit = 60
 upper_limit = 140
 get_mu("BDI",x,theta)
-get_var("BDI",x,theta)
+get_covar("BDI",x,theta)
 
 gamma*(1+2*mu)/((1-(lambda-mu)^2)*(1-(lambda-mu)))
 

@@ -7,14 +7,14 @@
 //[[Rcpp::depends(RcppArmadillo)]]
 #include <Rcpp.h>
 
-double get_variance_exact(const std::string &model_name, const Rcpp::NumericVector &thetas, 
-const double &tout, const double &tau, const Rcpp::NumericVector &start, const Rcpp::NumericVector &target, 
-const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper,
-const Rcpp::NumericVector &lower_limit, const Rcpp::NumericVector &upper_limit);
+double get_variance_exact(const std::string &model_name, const arma::vec &thetas, 
+const double &tout, const double &tau, const arma::vec &start, const arma::vec &target, 
+const arma::vec &lower, const arma::vec &upper,
+const arma::vec &lower_limit, const arma::vec &upper_limit);
 
-Rcpp::NumericMatrix get_contour_exact(const std::string &model_name, const Rcpp::NumericVector &thetas, 
-const double &tout, const Rcpp::NumericVector &taus, const Rcpp::NumericVector &start, const Rcpp::NumericVector &target, 
+arma::mat get_contour_exact(const std::string &model_name, const arma::vec &thetas, 
+const double &tout, const arma::vec &taus, const arma::vec &start, const arma::vec &target, 
 const Rcpp::List &lower_list, const Rcpp::List &upper_list, 
-const Rcpp::NumericVector &lower_limit, const Rcpp::NumericVector &upper_limit);
+const arma::vec &lower_limit, const arma::vec &upper_limit);
 
 #endif

@@ -19,8 +19,8 @@ upper = c(330,150)
 lower_limit = c(0,0)
 upper_limit = c(30,30)
 
-tout = 5
-obs = c(280,80)
+tout = 1
+obs = c(240,190)
 lower = c(obs[1]-30,obs[2]-30)
 upper = c(obs[1]+30,obs[2]+30)
 

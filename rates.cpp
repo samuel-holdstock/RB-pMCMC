@@ -26,24 +26,24 @@ std::shared_ptr<Model> ModelDictionary::get_model(std::string name){
   return(model_dictionary[name]);
 }
 
-Rcpp::NumericMatrix Model::populate_matrix(Rcpp::NumericVector values){
-  Rcpp::NumericMatrix S(num_states,num_reactions);
-  for(int i=0;i<values.length();++i){
+arma::mat Model::populate_matrix(arma::vec values){
+  arma::mat S(num_states,num_reactions);
+  for(int i=0;i<values.n_elem;++i){
     S(i/num_reactions,i%num_reactions) = values[i];
   }
   return(S);
 }
 
-// std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> Model::get_rate_function(){
-//   return[this](const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta){
+// std::function<arma::vec(const arma::vec &x, const arma::vec &theta)> Model::get_rate_function(){
+//   return[this](const arma::vec &x, const arma::vec &theta){
 //     return(get_rates(x, theta));
 //   };
 //}
 
-Rcpp::NumericVector BDI::get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta){
+arma::vec BDI::get_rates(const arma::vec &x, const arma::vec &theta){
   double P=x[0]; // Define species
   double lambda=theta[0], mu=theta[1], gamma=theta[2]; // Define parameters
-  Rcpp::NumericVector r(3); // Number of reactions 
+  arma::vec r(3); // Number of reactions 
   r[0]=lambda*P; // Calculate rates
   r[1]=mu*P;
   r[2]=gamma;
@@ -58,11 +58,11 @@ BDI::BDI(){
   S = populate_matrix(values);
 }
 
-Rcpp::NumericVector SIR::get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta){
+arma::vec SIR::get_rates(const arma::vec &x, const arma::vec &theta){
   double S=x[0], I=x[1]; // Define species
   //double N=theta[0], beta=theta[1], gamma=theta[2]; // Define parameters
   double beta=theta[0], gamma=theta[1]; // Define parameters
-  Rcpp::NumericVector r(2); // Number of reactions
+  arma::vec r(2); // Number of reactions
 
   //r[0]=beta*S*I/N; // Calculate rates
   r[0]=beta*S*I; // Calculate rates
@@ -80,10 +80,10 @@ SIR::SIR(){
   S = populate_matrix(values);
 }
 
-Rcpp::NumericVector SIR_N::get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta){
+arma::vec SIR_N::get_rates(const arma::vec &x, const arma::vec &theta){
   double S=x[0], I=x[1]; // Define species
   double N=theta[0], beta=theta[1], gamma=theta[2]; // Define parameters
-  Rcpp::NumericVector r(2); // Number of reactions
+  arma::vec r(2); // Number of reactions
 
   r[0]=beta*S*I/N; // Calculate rates
   r[1]=gamma*I;
@@ -100,11 +100,11 @@ SIR_N::SIR_N(){
   S = populate_matrix(values);
 }
 
-Rcpp::NumericVector SEIR::get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta){
+arma::vec SEIR::get_rates(const arma::vec &x, const arma::vec &theta){
   double S=x[0], E=x[1], I=x[2]; // Define species
   //double N=theta[0], beta=theta[1], a=theta[2], gamma=theta[3]; // Define parameters
   double beta=theta[0], a=theta[1], gamma=theta[2]; // Define parameters
-  Rcpp::NumericVector r(3); // Number of reactions 
+  arma::vec r(3); // Number of reactions 
 
   //r[0]=beta*S*I/N; // Calculate rates
   r[0]=beta*S*I; // Calculate rates
@@ -124,10 +124,10 @@ SEIR::SEIR(){
   S = populate_matrix(values);
 }
 
-Rcpp::NumericVector SEIR_N::get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta){
+arma::vec SEIR_N::get_rates(const arma::vec &x, const arma::vec &theta){
   double S=x[0], E=x[1], I=x[2]; // Define species
   double N=theta[0], beta=theta[1], a=theta[2], gamma=theta[3]; // Define parameters
-  Rcpp::NumericVector r(3); // Number of reactions 
+  arma::vec r(3); // Number of reactions 
 
   r[0]=beta*S*I/N; // Calculate rates
   r[1]=a*E;
@@ -146,10 +146,10 @@ SEIR_N::SEIR_N(){
   S = populate_matrix(values);
 }
 
-Rcpp::NumericVector BDI_2::get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta){
+arma::vec BDI_2::get_rates(const arma::vec &x, const arma::vec &theta){
   double P=x[0]; // Define species
   double gamma=theta[0], epsilon=theta[1]; // Define parameters
-  Rcpp::NumericVector r(2); // Number of reactions 
+  arma::vec r(2); // Number of reactions 
   r[0]=gamma*P; // Calculate rates
   r[1]=epsilon*P;
   return r; // Return vector of rates
@@ -163,13 +163,13 @@ BDI_2::BDI_2(){
   S = populate_matrix(values);
 }
 
-Rcpp::NumericVector LV::get_rates(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta){
+arma::vec LV::get_rates(const arma::vec &x, const arma::vec &theta){
   double predator=x[0], prey=x[1]; // Define species
   double alpha=theta[0], beta=theta[1], gamma=theta[2]; // Define parameters
   // alpha is the prey reproduction rate
   // beta is the predation rate
   // gamma is the predator death rate
-  Rcpp::NumericVector r(3); // Number of reactions 
+  arma::vec r(3); // Number of reactions 
   r[0]=alpha*prey; // Calculate rates
   r[1]=beta*prey*predator;
   r[2]=gamma*predator;

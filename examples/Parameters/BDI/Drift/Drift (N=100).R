@@ -12,4 +12,4 @@ get_mu("BDI",x,theta)
 tout_list = c(1)
 obs_list = get_obs("BDI", x, theta, tout_list)
 obs_list[1,1] = 120
-
+obs = 120

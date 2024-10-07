@@ -4,19 +4,19 @@
 #include "gillespie.h"
 
 
-Rcpp::List gillespie_alg(const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, const Rcpp::NumericMatrix &S, double tout,
-                            const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper, double tau,
-                            std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> rates_function) {
+Rcpp::List gillespie_alg(const arma::vec &x0, const arma::vec &theta, const arma::mat &S, double tout,
+                            const arma::vec &lower, const arma::vec &upper, double tau,
+                            std::function<arma::vec(const arma::vec &x, const arma::vec &theta)> rates_function) {
 
-  int n_spec = S.nrow(); // Number of species
-  int n_react = S.ncol(); // Number of reactions
+  int n_spec = S.n_rows; // Number of species
+  int n_react = S.n_cols; // Number of reactions
   double rtot, tcurr=0, tnext=0;
-  Rcpp::NumericVector xcurr=clone(x0);
-  Rcpp::NumericVector r=rates_function(xcurr,theta);
+  arma::vec xcurr=x0; // make sure not pass by ref
+  arma::vec r=rates_function(xcurr,theta);
   rtot=sum(r);
   tnext=tcurr-log(R::runif(0,1))/rtot; // add Exp(rtot)
-  Rcpp::NumericVector xttau_data;
-  Rcpp::NumericVector xt_data;
+  arma::vec xttau_data;
+  arma::vec xt_data;
   bool set_xttau = false;
   int counter = 0;
   bool inS=true;
@@ -37,7 +37,7 @@ Rcpp::List gillespie_alg(const Rcpp::NumericVector &x0, const Rcpp::NumericVecto
       }
     }
     if (tcurr <= tout-tau && tout-tau < tnext){
-      xttau_data = clone(xcurr);
+      xttau_data = xcurr; // make sure not ref
       set_xttau  = true;
       for(int i=0; i<n_spec; ++i){
         if (lower[i] > xcurr[i] || xcurr[i] > upper[i]){
@@ -52,7 +52,7 @@ Rcpp::List gillespie_alg(const Rcpp::NumericVector &x0, const Rcpp::NumericVecto
     for(int i=0; i<n_react; ++i){
         cumtot += r[i];
         if(u*rtot<cumtot){
-            xcurr += S(Rcpp::_,i);
+            xcurr += S.col(i);
             break;
         }
     }
@@ -82,25 +82,25 @@ Rcpp::List gillespie_alg(const Rcpp::NumericVector &x0, const Rcpp::NumericVecto
   return results;
 }
 
-Rcpp::List gillespie_alg_entire(const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, const Rcpp::NumericMatrix &S, double tout,
-                            const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper, double tau,
-                            std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> rates_function) {
-  int n_spec = S.nrow(); // Number of species
-  int n_react = S.ncol(); // Number of reactions
+Rcpp::List gillespie_alg_entire(const arma::vec &x0, const arma::vec &theta, const arma::mat &S, double tout,
+                            const arma::vec &lower, const arma::vec &upper, double tau,
+                            std::function<arma::vec(const arma::vec &x, const arma::vec &theta)> rates_function) {
+  int n_spec = S.n_rows; // Number of species
+  int n_react = S.n_cols; // Number of reactions
   double rtot, tcurr=0, tnext=0;
-  Rcpp::NumericVector xcurr=clone(x0);
-  Rcpp::NumericVector r=rates_function(xcurr,theta);
+  arma::vec xcurr=x0; // check not ref
+  arma::vec r=rates_function(xcurr,theta);
   rtot=sum(r);
   tnext=tcurr-log(R::runif(0,1))/rtot; // add Exp(rtot)
   bool inS=TRUE;
-  Rcpp::NumericVector xttau_data(n_spec+1);
-  Rcpp::NumericMatrix data(0,n_spec+1);
+  arma::vec xttau_data(n_spec+1);
+  arma::mat data(0,n_spec+1);
   bool set_xttau = false;
 
   data = add_row_time(data,xcurr,tcurr);
   while (tnext<tout) {
     if (tcurr <= tout-tau && tout-tau < tnext){
-      xttau_data = clone(xcurr);
+      xttau_data = xcurr; // check not ref
       set_xttau = true;
       for(int i=0; i<n_spec; ++i){
           if (lower[i] > xcurr[i] || xcurr[i] > upper[i]){
@@ -115,7 +115,7 @@ Rcpp::List gillespie_alg_entire(const Rcpp::NumericVector &x0, const Rcpp::Numer
     for(int i=0; i<n_react; ++i){
         cumtot += r[i];
         if(u*rtot<cumtot){
-            xcurr += S(Rcpp::_,i);
+            xcurr += S.col(i);
             break;
         }
     }
@@ -145,16 +145,16 @@ Rcpp::List gillespie_alg_entire(const Rcpp::NumericVector &x0, const Rcpp::Numer
   return results;
 }
 
-Rcpp::List gillespie_alg_frac(const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, const Rcpp::NumericMatrix &S, double tout,
-                            std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> rates_function) {
-  int n_spec = S.nrow(); // Number of species
-  int n_react = S.ncol(); // Number of reactions
+Rcpp::List gillespie_alg_frac(const arma::vec &x0, const arma::vec &theta, const arma::mat &S, double tout,
+                            std::function<arma::vec(const arma::vec &x, const arma::vec &theta)> rates_function) {
+  int n_spec = S.n_rows; // Number of species
+  int n_react = S.n_cols; // Number of reactions
   double rtot, tcurr=0, tnext=0;
-  Rcpp::NumericVector xcurr=clone(x0);
-  Rcpp::NumericVector r=rates_function(xcurr,theta);
+  arma::vec xcurr=x0; // clone
+  arma::vec r=rates_function(xcurr,theta);
   rtot=sum(r);
   tnext=tcurr-log(R::runif(0,1))/rtot; // add Exp(rtot)
-  Rcpp::NumericVector xt_data;
+  arma::vec xt_data;
   int counter = 0;
   while (tnext<tout) {
     tcurr=tnext;
@@ -171,7 +171,7 @@ Rcpp::List gillespie_alg_frac(const Rcpp::NumericVector &x0, const Rcpp::Numeric
     for(int i=0; i<n_react; ++i){
         cumtot += r[i];
         if(u*rtot<cumtot){
-            xcurr += S(Rcpp::_,i);
+            xcurr += S.col(i);
             break;
         }
     }
@@ -184,16 +184,16 @@ Rcpp::List gillespie_alg_frac(const Rcpp::NumericVector &x0, const Rcpp::Numeric
   return results;
 }
 
-Rcpp::List gillespie_alg_entire_frac(const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, const Rcpp::NumericMatrix &S, double tout,
-                            std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> rates_function) {
-  int n_spec = S.nrow(); // Number of species
-  int n_react = S.ncol(); // Number of reactions
+Rcpp::List gillespie_alg_entire_frac(const arma::vec &x0, const arma::vec &theta, const arma::mat &S, double tout,
+                            std::function<arma::vec(const arma::vec &x, const arma::vec &theta)> rates_function) {
+  int n_spec = S.n_rows; // Number of species
+  int n_react = S.n_cols; // Number of reactions
   double rtot, tcurr=0, tnext=0;
-  Rcpp::NumericVector xcurr=clone(x0);
-  Rcpp::NumericVector r=rates_function(xcurr,theta);
+  arma::vec xcurr=x0; // clone
+  arma::vec r=rates_function(xcurr,theta);
   rtot=sum(r);
   tnext=tcurr-log(R::runif(0,1))/rtot; // add Exp(rtot)
-  Rcpp::NumericMatrix data(0,n_spec+1);
+  arma::mat data(0,n_spec+1);
 
   data = add_row_time(data,xcurr,tcurr);
   while (tnext<tout) {
@@ -203,7 +203,7 @@ Rcpp::List gillespie_alg_entire_frac(const Rcpp::NumericVector &x0, const Rcpp::
     for(int i=0; i<n_react; ++i){
         cumtot += r[i];
         if(u*rtot<cumtot){
-            xcurr += S(Rcpp::_,i);
+            xcurr += S.col(i);
             break;
         }
     }
@@ -216,12 +216,12 @@ Rcpp::List gillespie_alg_entire_frac(const Rcpp::NumericVector &x0, const Rcpp::
   return results;
 }
 
-Rcpp::NumericMatrix add_row_time(Rcpp::NumericMatrix data, Rcpp::NumericVector xcurr, double tnext){
-  int nrows = data.rows();
-  int ncols = data.ncol();
-  Rcpp::NumericMatrix newData = Rcpp::NumericMatrix(nrows+1,ncols);
+arma::mat add_row_time(arma::mat data, arma::vec xcurr, double tnext){
+  int nrows = data.n_rows;
+  int ncols = data.n_cols;
+  arma::mat newData = arma::mat(nrows+1,ncols);
   for(int i=0;i<nrows;++i){
-    newData(i,Rcpp::_) = data(i,Rcpp::_);
+    newData.row(i) = data.row(i);
   }
   newData(nrows,0) = tnext;
   for(int j=1;j<=ncols-1;++j){

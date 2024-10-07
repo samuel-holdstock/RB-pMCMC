@@ -16,42 +16,42 @@
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 
-std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> get_rate_function(std::string str);
+std::function<arma::vec(const arma::vec &x, const arma::vec &theta)> get_rate_function(std::string str);
 
-Rcpp::NumericMatrix get_S(std::string str);
+arma::mat get_S(std::string str);
 
-Rcpp::NumericVector get_rate(std::string str, const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta);
+arma::vec get_rate(std::string str, const arma::vec &x, const arma::vec &theta);
 
-Rcpp::List run_algorithm(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, double tout,
-                  const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper, double tau);
+Rcpp::List run_algorithm(std::string str, const arma::vec &x0, const arma::vec &theta, double tout,
+                  const arma::vec &lower, const arma::vec &upper, double tau);
 
-Rcpp::List run_algorithm_frac(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, double tout);
+Rcpp::List run_algorithm_frac(std::string str, const arma::vec &x0, const arma::vec &theta, double tout);
 
-Rcpp::List sim_data(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, double tout,
-                  const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper, double tau);
+Rcpp::List sim_data(std::string str, const arma::vec &x0, const arma::vec &theta, double tout,
+                  const arma::vec &lower, const arma::vec &upper, double tau);
 
-Rcpp::List sim_data_frac(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, double tout);
+Rcpp::List sim_data_frac(std::string str, const arma::vec &x0, const arma::vec &theta, double tout);
 
-Rcpp::NumericMatrix get_coffin_matrix(
+arma::mat get_coffin_matrix(
 std::string str,
-Rcpp::NumericVector lower,
-Rcpp::NumericVector upper,
-Rcpp::NumericVector theta);
+arma::vec lower,
+arma::vec upper,
+arma::vec theta);
 
-double get_estimate(const Rcpp::List &estimate, const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper, const arma::mat &P, const Rcpp::NumericVector &obs);
+double get_estimate(const Rcpp::List &estimate, const arma::vec &lower, const arma::vec &upper, const arma::mat &P, const arma::vec &obs);
 
-double get_estimate_frac(const Rcpp::List &estimate, const Rcpp::NumericVector &obs);
+double get_estimate_frac(const Rcpp::List &estimate, const arma::vec &obs);
 
-double RB(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, double tout,
-                  const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper, double tau,
-                  const Rcpp::NumericVector &obs, int M);
+double RB(std::string str, const arma::vec &x0, const arma::vec &theta, double tout,
+                  const arma::vec &lower, const arma::vec &upper, double tau,
+                  const arma::vec &obs, int M);
 
-double RB_list(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, Rcpp::NumericVector tout_list,
-                  const Rcpp::NumericMatrix &lower_list, const Rcpp::NumericMatrix &upper_list, Rcpp::NumericVector tau,
-                  const Rcpp::NumericMatrix &obs_list, int M);
-                  
-double frac(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, double tout,
-                  const Rcpp::NumericVector &obs, int M);
+double RB_list(std::string str, const arma::vec &x0, const arma::vec &theta, arma::vec tout_list,
+                  const arma::mat &lower_list, const arma::mat &upper_list, arma::vec tau_list,
+                  const arma::mat &obs_list, int M);
+
+double frac(std::string str, const arma::vec &x0, const arma::vec &theta, double tout,
+                  const arma::vec &obs, int M);
 
 #endif
 

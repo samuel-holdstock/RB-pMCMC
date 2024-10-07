@@ -62,6 +62,10 @@
         "iomanip": "cpp",
         "sstream": "cpp",
         "cfenv": "cpp",
-        "cinttypes": "cpp"
+        "cinttypes": "cpp",
+        "bitset": "cpp",
+        "set": "cpp",
+        "optional": "cpp",
+        "typeindex": "cpp"
     }
 }

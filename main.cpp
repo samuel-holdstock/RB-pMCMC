@@ -1,71 +1,71 @@
 #include "main.h"
 
-std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> get_rate_function(std::string str){
+std::function<arma::vec(const arma::vec &x, const arma::vec &theta)> get_rate_function(std::string str){
   auto model = model_dict.get_model(str);
-  return [model](const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta){
+  return [model](const arma::vec &x, const arma::vec &theta){
     return model->get_rates(x,theta);
   };
 }
 //[[Rcpp::export]]
-Rcpp::NumericMatrix get_S(std::string str){
+arma::mat get_S(std::string str){
   auto model = model_dict.get_model(str);
   return(model->S);
 }
 //[[Rcpp::export]]
-Rcpp::NumericVector get_rate(std::string str, const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta){
+arma::vec get_rate(std::string str, const arma::vec &x, const arma::vec &theta){
   return(get_rate_function(str)(x,theta));
 }
 
 
 // PREDEFINED MODELS
 // [[Rcpp::export]]
-Rcpp::List run_algorithm(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, double tout,
-                  const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper, double tau){
-  std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> rates_function = get_rate_function(str);
-  Rcpp::NumericMatrix S = get_S(str);
+Rcpp::List run_algorithm(std::string str, const arma::vec &x0, const arma::vec &theta, double tout,
+                  const arma::vec &lower, const arma::vec &upper, double tau){
+  std::function<arma::vec(const arma::vec &x, const arma::vec &theta)> rates_function = get_rate_function(str);
+  arma::mat S = get_S(str);
   return(gillespie_alg(x0, theta, S, tout, lower, upper, tau, rates_function));
 }
 
 // [[Rcpp::export]]
-Rcpp::List run_algorithm_frac(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, double tout){
-  std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> rates_function = get_rate_function(str);
-  Rcpp::NumericMatrix S = get_S(str);
+Rcpp::List run_algorithm_frac(std::string str, const arma::vec &x0, const arma::vec &theta, double tout){
+  std::function<arma::vec(const arma::vec &x, const arma::vec &theta)> rates_function = get_rate_function(str);
+  arma::mat S = get_S(str);
   return(gillespie_alg_frac(x0, theta, S, tout, rates_function));
 }
 
 // [[Rcpp::export]]
-Rcpp::List sim_data(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, double tout,
-                  const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper, double tau){
-  std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> rates_function = get_rate_function(str);
-  Rcpp::NumericMatrix S = get_S(str);
+Rcpp::List sim_data(std::string str, const arma::vec &x0, const arma::vec &theta, double tout,
+                  const arma::vec &lower, const arma::vec &upper, double tau){
+  std::function<arma::vec(const arma::vec &x, const arma::vec &theta)> rates_function = get_rate_function(str);
+  arma::mat S = get_S(str);
   return(gillespie_alg_entire(x0, theta, S, tout, lower, upper, tau, rates_function));
 }
 
 // [[Rcpp::export]]
-Rcpp::List sim_data_frac(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, double tout){
-  std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> rates_function = get_rate_function(str);
-  Rcpp::NumericMatrix S = get_S(str);
+Rcpp::List sim_data_frac(std::string str, const arma::vec &x0, const arma::vec &theta, double tout){
+  std::function<arma::vec(const arma::vec &x, const arma::vec &theta)> rates_function = get_rate_function(str);
+  arma::mat S = get_S(str);
   return(gillespie_alg_entire_frac(x0, theta, S, tout, rates_function));
 }
 
 // [[Rcpp::export]]
-Rcpp::NumericMatrix get_coffin_matrix(
+arma::mat get_coffin_matrix(
 std::string str,
-Rcpp::NumericVector lower,
-Rcpp::NumericVector upper,
-Rcpp::NumericVector theta){
-  std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> rates_function = get_rate_function(str);
-  Rcpp::NumericMatrix S = get_S(str);
+arma::vec lower,
+arma::vec upper,
+arma::vec theta){
+  std::function<arma::vec(const arma::vec &x, const arma::vec &theta)> rates_function = get_rate_function(str);
+  arma::mat S = get_S(str);
   return(Qmat(lower,upper,theta,S,rates_function));
 }
 
 //[[Rcpp::export]]
-double get_estimate(const Rcpp::List &estimate, const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper, const arma::mat &P, const Rcpp::NumericVector &obs){  
+double get_estimate(const Rcpp::List &estimate, const arma::vec &lower, const arma::vec &upper, const arma::mat &P, const arma::vec &obs){  
   int hitObs = 1;
-  Rcpp::NumericVector xt_data = estimate["xt_data"];
-  Rcpp::NumericVector xttau_data = estimate["xttau_data"];
+  arma::vec xt_data = estimate["xt_data"];
+  arma::vec xttau_data = estimate["xttau_data"];
   bool inS = estimate["inS"]; 
-  for(int i=0;i<xt_data.length();++i){
+  for(int i=0;i<xt_data.n_elem;++i){
     hitObs *= (xt_data[i]==obs[i]);
   }
   //std::cout<<"Hit xt:"<<hitObs<<", Not inS:"<<(1-inS)<<", Q:"<<P[state_to_index(xttau_data,lower,upper)]<<std::endl;
@@ -74,10 +74,10 @@ double get_estimate(const Rcpp::List &estimate, const Rcpp::NumericVector &lower
 }
 
 //[[Rcpp::export]]
-double get_estimate_frac(const Rcpp::List &estimate, const Rcpp::NumericVector &obs){  
+double get_estimate_frac(const Rcpp::List &estimate, const arma::vec &obs){  
   int hitObs = 1;
-  Rcpp::NumericVector xt_data = estimate["xt_data"];
-  for(int i=0;i<xt_data.length();++i){
+  arma::vec xt_data = estimate["xt_data"];
+  for(int i=0;i<xt_data.n_elem;++i){
     hitObs *= (xt_data[i]==obs[i]);
   }
   double est = hitObs;
@@ -86,16 +86,16 @@ double get_estimate_frac(const Rcpp::List &estimate, const Rcpp::NumericVector &
 }
 
 //[[Rcpp::export]]
-double RB(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, double tout,
-                  const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper, double tau,
-                  const Rcpp::NumericVector &obs, int M){
-  std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> rates_function = get_rate_function(str);
-  Rcpp::NumericMatrix S = get_S(str);
-  Rcpp::NumericMatrix Q = Rcpp::transpose(get_coffin_matrix(str,lower,upper,theta));
-  arma::mat v(Q.nrow(),1);    
+double RB(std::string str, const arma::vec &x0, const arma::vec &theta, double tout,
+                  const arma::vec &lower, const arma::vec &upper, double tau,
+                  const arma::vec &obs, int M){
+  std::function<arma::vec(const arma::vec &x, const arma::vec &theta)> rates_function = get_rate_function(str);
+  arma::mat S = get_S(str);
+  arma::mat Q = get_coffin_matrix(str,lower,upper,theta).t();
+  arma::mat v(Q.n_rows,1);    
   int obs_index = state_to_index(obs,lower,upper);
   v[obs_index] = 1;
-  arma::mat P = vT_exp_Q(v,Q*tau,1e-20,false,true,false);
+  arma::mat P = vT_exp_Q(v,Rcpp::wrap(Q*tau),1e-20,false,true,false);
   Rcpp::List estimate;
   double estimator = 0;
   for(int i=0;i<M;++i){
@@ -106,40 +106,40 @@ double RB(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVec
 }
 
 //[[Rcpp::export]]
-double RB_list(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, Rcpp::NumericVector tout_list,
-                  const Rcpp::NumericMatrix &lower_list, const Rcpp::NumericMatrix &upper_list, Rcpp::NumericVector tau_list,
-                  const Rcpp::NumericMatrix &obs_list, int M){
-  int num_obs = tout_list.size();
-  int num_species = x0.size();
-  Rcpp::NumericVector lower(num_species);
-  Rcpp::NumericVector upper(num_species);
-  Rcpp::NumericVector obs(num_species);
+double RB_list(std::string str, const arma::vec &x0, const arma::vec &theta, arma::vec tout_list,
+                  const arma::mat &lower_list, const arma::mat &upper_list, arma::vec tau_list,
+                  const arma::mat &obs_list, int M){
+  int num_obs = tout_list.n_elem;
+  int num_species = x0.n_elem;
+  arma::vec lower(num_species);
+  arma::vec upper(num_species);
+  arma::vec obs(num_species);
   double tout;
   double tau;
-  Rcpp::NumericVector x = clone(x0);
+  arma::vec x = x0; // copy
   double prev_time = 0;
   double log_prob = 0;
   for(int i=0; i<num_obs; ++i){
-    lower = lower_list(i,Rcpp::_);
-    upper = upper_list(i,Rcpp::_);
-    obs = obs_list(i,Rcpp::_);
+    lower = lower_list.row(i);
+    upper = upper_list.row(i);
+    obs = obs_list.row(i);
     tout = tout_list(i)-prev_time;
     tau = tau_list[i];
     log_prob += log(RB(str,x,theta,tout,lower,upper,tau,obs,M));
     if(isinf(log_prob)){
       return(log_prob);
     }
-    x = clone(obs);
+    x = obs; // copy
     prev_time = tout_list(i);
   }
   return(log_prob);
 }
 
 //[[Rcpp::export]]
-double frac(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, double tout,
-                  const Rcpp::NumericVector &obs, int M){
-  std::function<Rcpp::NumericVector(const Rcpp::NumericVector &x, const Rcpp::NumericVector &theta)> rates_function = get_rate_function(str);
-  Rcpp::NumericMatrix S = get_S(str);
+double frac(std::string str, const arma::vec &x0, const arma::vec &theta, double tout,
+                  const arma::vec &obs, int M){
+  std::function<arma::vec(const arma::vec &x, const arma::vec &theta)> rates_function = get_rate_function(str);
+  arma::mat S = get_S(str);
   Rcpp::List estimate;
   double estimator = 0;
   for(int i=0;i<M;++i){
@@ -150,23 +150,23 @@ double frac(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericV
 }
 
 //[[Rcpp::export]]
-double frac_list(std::string str, const Rcpp::NumericVector &x0, const Rcpp::NumericVector &theta, Rcpp::NumericVector tout_list,
-                  const Rcpp::NumericMatrix &obs_list, int M){
-  int num_obs = tout_list.size();
-  int num_species = x0.size();
-  Rcpp::NumericVector obs(num_species);
+double frac_list(std::string str, const arma::vec &x0, const arma::vec &theta, arma::vec tout_list,
+                  const arma::mat &obs_list, int M){
+  int num_obs = tout_list.n_elem;
+  int num_species = x0.n_elem;
+  arma::vec obs(num_species);
   double tout;
-  Rcpp::NumericVector x = clone(x0);
+  arma::vec x = x0; // copy
   double prev_time = 0;
   double log_prob = 0;
   for(int i=0; i<num_obs; ++i){
-    obs = obs_list(i,Rcpp::_);
+    obs = obs_list.row(i);
     tout = tout_list(i)-prev_time;
     log_prob += log(frac(str,x,theta,tout,obs,M));
     if(isinf(log_prob)){
       return(log_prob);
     }
-    x = clone(obs);
+    x = obs; // copy
     prev_time = tout_list(i);
   }
   return(log_prob);

@@ -31,29 +31,55 @@ double get_probability_hit(double start, double target, double tout, double mu, 
 }
 
 //[[Rcpp::export]]
-Rcpp::NumericVector get_mu(const std::string &model_name, const Rcpp::NumericVector &start, const Rcpp::NumericVector &thetas){
+double get_density_hit(double start, double target, double tout, double mu, double sig){
+  double sig2 = sig*sig;
+  // double probability = 1/sqrt(2*M_PI*sig2*tout)*exp(-0.5*(target-start-mu*tout)*(target-start-mu*tout)/(sig2*tout));
+  double probability = R::dnorm(target,start+mu*tout,sig*sqrt(tout),0);
+  return(probability);
+}
+
+//[[Rcpp::export]]
+double get_MVT_density_hit(const arma::vec &start, const arma::vec &target, double tout, const arma::vec &mu, const arma::mat &covar){
+  int d = start.n_elem;
+  arma::mat u = start+mu*tout-target;
+  double mahalanobis = arma::as_scalar(u.t()*arma::inv(covar*tout)*u);
+  double probability = exp(-0.5*(d*log(2*M_PI)+log(arma::det(covar*tout))+mahalanobis));
+  return(probability);
+}
+
+//[[Rcpp::export]]
+arma::vec get_mu(const std::string &model_name, const arma::vec &start, const arma::vec &thetas){
   auto model = model_dict.get_model(model_name);
-  Rcpp::NumericMatrix S = model->S;
-  Rcpp::NumericVector h = model->get_rates(start,thetas);  
-  int number_reactions = S.ncol();
-  int number_species = S.nrow();
-  Rcpp::NumericVector mu(number_species);
-  for(int i=0;i<number_species;++i){
-    for(int j=0;j<number_reactions;++j){
-      mu(i) += S(i,j)*h[j];
-    }
-  }  
+  arma::mat S = model->S;
+  arma::vec h = model->get_rates(start,thetas);  
+  int number_reactions = S.n_cols;
+  int number_species = S.n_rows;
+  arma::vec mu(number_species);
+  mu = S*h;
   return(mu);
 }
 
 //[[Rcpp::export]]
-Rcpp::NumericVector get_var(const std::string &model_name, const Rcpp::NumericVector &start, const Rcpp::NumericVector &thetas){
+arma::mat get_covar(const std::string &model_name, const arma::vec &start, const arma::vec &thetas){
   auto model = model_dict.get_model(model_name);
-  Rcpp::NumericMatrix S = model->S;
-  Rcpp::NumericVector h = model->get_rates(start,thetas);  
-  int number_reactions = S.ncol();
-  int number_species = S.nrow();
-  Rcpp::NumericVector sig(number_species);
+  arma::mat S = model->S;
+  arma::vec h = model->get_rates(start,thetas);  
+  arma::mat diag_h = arma::diagmat(h);
+  int number_reactions = S.n_cols;
+  int number_species = S.n_rows;
+  arma::mat St = S.t();
+  arma::mat covar = S*diag_h*St;
+  return(covar);
+}
+
+//[[Rcpp::export]]
+arma::vec get_var(const std::string &model_name, const arma::vec &start, const arma::vec &thetas){
+  auto model = model_dict.get_model(model_name);
+  arma::mat S = model->S;
+  arma::vec h = model->get_rates(start,thetas);  
+  int number_reactions = S.n_cols;
+  int number_species = S.n_rows;
+  arma::vec sig(number_species);
   for(int i=0;i<number_species;++i){
     for(int j=0;j<number_reactions;++j){
       sig(i) += S(i,j)*h[j]*S(i,j);
@@ -64,14 +90,24 @@ Rcpp::NumericVector get_var(const std::string &model_name, const Rcpp::NumericVe
 }
 
 //[[Rcpp::export]]
-Rcpp::NumericVector get_expected_jump(const std::string &model_name, const Rcpp::NumericVector &start, const Rcpp::NumericVector &thetas){
+void printMatrix(const arma::mat& A){
+  for(int i=0;i<A.n_rows;++i){
+    for(int j=0;j<A.n_cols;++j){
+      std::cout<<A(i,j);
+    }
+    std::cout<<std::endl;
+  }
+}
+
+//[[Rcpp::export]]
+arma::vec get_expected_jump(const std::string &model_name, const arma::vec &start, const arma::vec &thetas){
   auto model = model_dict.get_model(model_name);
-  Rcpp::NumericMatrix S = model->S;
-  Rcpp::NumericVector h = model->get_rates(start,thetas);  
-  int num_species = S.nrow();
-  int num_reactions = S.ncol();
+  arma::mat S = model->S;
+  arma::vec h = model->get_rates(start,thetas);  
+  int num_species = S.n_rows;
+  int num_reactions = S.n_cols;
   int h0 = 0;
-  Rcpp::NumericVector expected_jump(num_species);
+  arma::vec expected_jump(num_species);
   for(int i=0;i<num_species;++i){
     for(int j=0;j<num_reactions;++j){
       h0 += h[j];
@@ -80,7 +116,7 @@ Rcpp::NumericVector get_expected_jump(const std::string &model_name, const Rcpp:
     expected_jump[i] /= h0;
     h0=0;
   }  
-  Rcpp::NumericVector v(num_species);
+  arma::vec v(num_species);
   for(int i=0;i<num_species;++i){
     // v[i] = 1.28;
     v[i] = 1.28;
@@ -90,16 +126,16 @@ Rcpp::NumericVector get_expected_jump(const std::string &model_name, const Rcpp:
 }
 
 //[[Rcpp::export]]
-double get_variance_brownian(const std::string &model_name, const Rcpp::NumericVector &thetas, 
-const double &tout, const double &tau, const Rcpp::NumericVector &start, const Rcpp::NumericVector &target, 
-const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper){
+double get_variance_brownian(const std::string &model_name, const arma::vec &thetas, 
+const double &tout, const double &tau, const arma::vec &start, const arma::vec &target, 
+const arma::vec &lower, const arma::vec &upper){
   auto model = model_dict.get_model(model_name);
-  Rcpp::NumericMatrix S = model->S;
-  Rcpp::NumericVector h = model->get_rates(start,thetas);  
-  int number_reactions = S.ncol();
-  int number_species = S.nrow();
-  Rcpp::NumericVector mu(number_species);
-  Rcpp::NumericVector sig(number_species);
+  arma::mat S = model->S;
+  arma::vec h = model->get_rates(start,thetas);  
+  int number_reactions = S.n_cols;
+  int number_species = S.n_rows;
+  arma::vec mu(number_species);
+  arma::vec sig(number_species);
   for(int i=0;i<number_species;++i){
     for(int j=0;j<number_reactions;++j){
       mu(i) += S(i,j)*h[j];
@@ -111,18 +147,18 @@ const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper){
   for(int i=0;i<number_species;++i){
       total_points *= (upper[i]-lower[i]+1);
   }
-  Rcpp::NumericVector a(total_points);
-  Rcpp::NumericVector b(total_points);
-  Rcpp::NumericVector delta(total_points);
-  Rcpp::NumericVector alpha(total_points);
-  Rcpp::NumericVector beta(total_points);
+  arma::vec a(total_points);
+  arma::vec b(total_points);
+  arma::vec delta(total_points);
+  arma::vec alpha(total_points);
+  arma::vec beta(total_points);
   double p = 1;
   a = a+1;
   b = b+1;
   delta = delta+1;
-  Rcpp::NumericVector state;
+  arma::vec state;
   int state_component;
-  Rcpp::NumericVector expected_jump = get_expected_jump(model_name,start,thetas);
+  arma::vec expected_jump = get_expected_jump(model_name,start,thetas);
   for(int i=0;i<number_species;++i){
     p *= get_probability_hit(start[i],target[i],tout,mu[i],sig[i]);
   }
@@ -142,7 +178,7 @@ const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper){
     // std::cout<<"p:"<<p<<std::endl;
   }
 
-  double percentage_variance_reduction = p*(1-p);
+  double VRF = p*(1-p);
   // double Q1 = 0;
   // double Q2 = 0;
   // double Q3 = 0;
@@ -152,58 +188,62 @@ const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper){
     // Q3 += a[i]*beta[i]*(1-beta[i]);
     // std::cout<<"a:"<<a[i]<<", b:"<<b[i]<<", delta:"<<delta[i]<<std::endl;
     // std::cout<<"alpha:"<<alpha[i]<<", beta: "<<beta[i]<<std::endl;
-    percentage_variance_reduction -= (a[i]*b[i]*(1-b[i]) - a[i]*delta[i]*(1-delta[i]));
+    VRF -= (a[i]*b[i]*(1-b[i]) - a[i]*delta[i]*(1-delta[i]));
     // percentage_variance_reduction -= (a[i]*b[i]*(1-b[i]) - (a[i]*(alpha[i]*(1-alpha[i])+beta[i]*(1-beta[i]))));
     
   }
   //double pvr = 1 - (Q1 - Q2 - Q3)/(p*(1-p));
   //std::cout<<"PVR:"<<pvr<<", Q1: "<<Q1<<", Q2:"<<Q2<<", Q3:"<<Q3<<", p:"<<p<<std::endl;
-  percentage_variance_reduction = percentage_variance_reduction/(p*(1-p));
-  if(percentage_variance_reduction>1){
-    return(1);
+  // percentage_variance_reduction = percentage_variance_reduction/(p*(1-p));
+  VRF = p*(1-p)/VRF;
+  // if(percentage_variance_reduction>1){
+  //   return(1);
+  // }
+  // if(percentage_variance_reduction<0){
+  //   return(0);
+  // }
+  if(VRF<1){
+    VRF=1;
   }
-  if(percentage_variance_reduction<0){
-    return(0);
-  }
-  return(percentage_variance_reduction);
+  return(VRF);
 }
 
 //[[Rcpp::export]]
-Rcpp::NumericMatrix get_contour_brownian(const std::string &model_name, const Rcpp::NumericVector &thetas, 
-const double &tout, const Rcpp::NumericVector &taus, const Rcpp::NumericVector &start, const Rcpp::NumericVector &target, 
+arma::mat get_contour_brownian(const std::string &model_name, const arma::vec &thetas, 
+const double &tout, const arma::vec &taus, const arma::vec &start, const arma::vec &target, 
 const Rcpp::List &lower_list, const Rcpp::List &upper_list){
   int number_widths = lower_list.size();
   int number_tau = taus.size();
-  Rcpp::NumericVector lower;
-  Rcpp::NumericVector upper;
+  arma::vec lower;
+  arma::vec upper;
   double tau;
-  Rcpp::NumericMatrix z(number_tau,number_widths);  
+  arma::mat z(number_tau,number_widths);  
   for(int i=0;i<number_widths;++i){
     for(int j=0;j<number_tau;++j){
-      lower = lower_list[i];
-      upper = upper_list[i];
+      lower = Rcpp::as<arma::vec>(lower_list[i]);
+      upper = Rcpp::as<arma::vec>(upper_list[i]);
       tau = taus[j];
-      z(j,i) = 1-get_variance_brownian(model_name, thetas, tout, tau, start, target, lower, upper);
+      z(j,i) = get_variance_brownian(model_name, thetas, tout, tau, start, target, lower, upper);
     }
   }
   return(z);
 }
 
 //[[Rcpp::export]]
-double get_variance_brownian_fast(const std::string &model_name, const Rcpp::NumericVector &thetas, 
-const double &tout, const double &tau, const Rcpp::NumericVector &start, const Rcpp::NumericVector &target, 
-const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper){
+double get_variance_brownian_fast(const std::string &model_name, const arma::vec &thetas, 
+const double &tout, const double &tau, const arma::vec &start, const arma::vec &target, 
+const arma::vec &lower, const arma::vec &upper){
   if(tau<1e-15){
     return(1);
   }
   auto model = model_dict.get_model(model_name);
-  Rcpp::NumericMatrix S = model->S;
-  Rcpp::NumericVector h = model->get_rates(start,thetas);  
-  int number_reactions = S.ncol();
-  int number_species = S.nrow();
-  Rcpp::NumericVector mu(number_species);
-  Rcpp::NumericVector sig(number_species);
-  Rcpp::NumericVector expected_jump = get_expected_jump(model_name,start,thetas);
+  arma::mat S = model->S;
+  arma::vec h = model->get_rates(start,thetas);  
+  int number_reactions = S.n_cols;
+  int number_species = S.n_rows;
+  arma::vec mu(number_species);
+  arma::vec sig(number_species);
+  arma::vec expected_jump = get_expected_jump(model_name,start,thetas);
   for(int i=0;i<number_species;++i){
     for(int j=0;j<number_reactions;++j){
       mu(i) += S(i,j)*h[j];
@@ -213,11 +253,15 @@ const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper){
   }  
   int total_points = 1;
   double p = 1;
+  // for(int i=0;i<number_species;++i){
+  //   total_points *= (upper[i]-lower[i]+1);
+  //   p *= get_probability_hit(start[i],target[i],tout,mu[i],sig[i]);
+  // }
   for(int i=0;i<number_species;++i){
     total_points *= (upper[i]-lower[i]+1);
-    p *= get_probability_hit(start[i],target[i],tout,mu[i],sig[i]);
+    p *= get_density_hit(start[i],target[i],tout,mu[i],sig[i]);
   }
-  double percentage_variance_reduction;
+  double VRF;
   double s = tout - tau;
   double k,v;
   double var;
@@ -249,39 +293,43 @@ const Rcpp::NumericVector &lower, const Rcpp::NumericVector &upper){
     Q3 += Q3_a - Q3_b;
   }
   //std::cout<<"a:"<<a_<<", b:"<<b_<<std::endl;
-  percentage_variance_reduction = 1 - (Q1 - Q2 - Q3)/(p*(1-p));
+  // percentage_variance_reduction = 1 - (Q1 - Q2 - Q3)/(p*(1-p));
+  VRF = (p*(1-p))/(p*(1-p) - (Q1 - Q2 - Q3));
   //std::cout<<"pvr:"<<percentage_variance_reduction<<", Q1:"<<Q1<<", Q2:"<<Q2<<", Q3:"<<Q3<<", p:"<<p<<std::endl;
-  if(percentage_variance_reduction>1){
-    percentage_variance_reduction = 1;
+  // if(percentage_variance_reduction>1){
+  //   percentage_variance_reduction = 1;
+  // }
+  // if(percentage_variance_reduction<0){
+  //   percentage_variance_reduction = 0;
+  // }
+  if(VRF<1){
+    VRF=1;
   }
-  if(percentage_variance_reduction<0){
-    percentage_variance_reduction = 0;
-  }
-  return(percentage_variance_reduction);
+  return(VRF);
 }
 
 //[[Rcpp::export]]
-Rcpp::NumericMatrix get_contour_brownian_fast(const std::string &model_name, const Rcpp::NumericVector &thetas, 
-const double &tout, const Rcpp::NumericVector &taus, const Rcpp::NumericVector &start, const Rcpp::NumericVector &target, 
+arma::mat get_contour_brownian_fast(const std::string &model_name, const arma::vec &thetas, 
+const double &tout, const arma::vec &taus, const arma::vec &start, const arma::vec &target, 
 const Rcpp::List &lower_list, const Rcpp::List &upper_list){
   int number_widths = lower_list.size();
   int number_tau = taus.size();
-  Rcpp::NumericVector lower;
-  Rcpp::NumericVector upper;
+  arma::vec lower;
+  arma::vec upper;
   double tau;
-  Rcpp::NumericMatrix z(number_tau,number_widths);  
+  arma::mat z(number_tau,number_widths);  
   for(int i=0;i<number_widths;++i){
     for(int j=0;j<number_tau;++j){
-      lower = lower_list[i];
-      upper = upper_list[i];
+      lower = Rcpp::as<arma::vec>(lower_list[i]);
+      upper = Rcpp::as<arma::vec>(upper_list[i]);
       tau = taus[j];
-      z(j,i) = 1-get_variance_brownian_fast(model_name, thetas, tout, tau, start, target, lower, upper);
+      z(j,i) = get_variance_brownian_fast(model_name, thetas, tout, tau, start, target, lower, upper);
     }
   }
   return(z);
 }
 //[[Rcpp::export]]
-double get_Q1_brownian_fast(const double &expected_jump, const Rcpp::NumericVector &thetas, 
+double get_Q1_brownian_fast(const double &expected_jump, const arma::vec &thetas, 
 const double &tout, const double &tau, const double &start, const double &target, 
 const double &mu, const double &var){
   double s = tout - tau;
@@ -293,7 +341,7 @@ const double &mu, const double &var){
 }
 
 //[[Rcpp::export]]
-double get_Q2_brownian_fast(const double &expected_jump, const Rcpp::NumericVector &thetas, 
+double get_Q2_brownian_fast(const double &expected_jump, const arma::vec &thetas, 
 const double &tout, const double &tau, const double &start, const double &target,
 const double &upper, const double &mu, const double &var){
   double s = tout - tau;
@@ -313,7 +361,7 @@ const double &upper, const double &mu, const double &var){
 }
 
 //[[Rcpp::export]]
-double get_Q3_brownian_fast(const double &expected_jump, const Rcpp::NumericVector &thetas, 
+double get_Q3_brownian_fast(const double &expected_jump, const arma::vec &thetas, 
 const double &tout, const double &tau, const double &start, const double &target, 
 const double &lower, const double &mu, const double &var){
   double s = tout - tau;
@@ -333,29 +381,31 @@ const double &lower, const double &mu, const double &var){
 }
 
 //[[Rcpp::export]]
-Rcpp::List get_box_brownian_fast(const std::string &model_name, const Rcpp::NumericVector &thetas, 
-const double &tout, const double &tau, const Rcpp::NumericVector &start, const Rcpp::NumericVector &target,
-const double &pvr_goal){
-  Rcpp::NumericVector mu = get_mu(model_name,start,thetas);
-  Rcpp::NumericVector var = get_var(model_name,start,thetas);
-  Rcpp::NumericVector lower = clone(target);
-  Rcpp::NumericVector upper = clone(target);
+Rcpp::List get_box_brownian_fast(const std::string &model_name, const arma::vec &thetas, 
+const double &tout, const double &tau, const arma::vec &start, const arma::vec &target,
+const double &beta){
+  arma::vec mu = get_mu(model_name,start,thetas);
+  arma::vec var = get_var(model_name,start,thetas);
+  arma::vec lower = (target); // copy
+  arma::vec upper = (target); // copy
 
   int number_species = start.size();
-  Rcpp::NumericVector p(number_species);
-  Rcpp::NumericVector Q1(number_species);
-  Rcpp::NumericVector Q2(number_species);
-  Rcpp::NumericVector Q3(number_species);
-  Rcpp::NumericVector expected_jump = get_expected_jump(model_name,start,thetas);
+  arma::vec p(number_species);
+  arma::vec Q1(number_species);
+  arma::vec Q2(number_species);
+  arma::vec Q3(number_species);
+  arma::vec expected_jump = get_expected_jump(model_name,start,thetas);
   int counter;
   for(int i=0;i<number_species;++i){
     // p[i] = get_probability_hit(start[i],target[i],tout,mu[i],sqrt(var[i]));
-    p[i] = 1/sqrt(2*M_PI*var[i]*tout)*exp(-0.5*(target[i]-(start[i]+mu[i]*tout))*(target[i]-(start[i]+mu[i]*tout))/(var[i]*tout)); 
+    p[i] = get_density_hit(start[i],target[i],tout,mu[i],sqrt(var[i]));
+    // p[i] = 1/sqrt(2*M_PI*var[i]*tout)*exp(-0.5*(target[i]-(start[i]+mu[i]*tout))*(target[i]-(start[i]+mu[i]*tout))/(var[i]*tout)); 
     // Q1[i] = get_Q1_brownian_fast(expected_jump[i],thetas,tout,tau,start[i],target[i],mu[i],var[i]);
     Q1[i] = get_Q1_brownian_fast(0.0,thetas,tout,tau,start[i],target[i],mu[i],var[i]);
     // double goal = Q1[i]*(1 - 1/(2-pvr_goal));
     // double goal = Q1[i]*(1 - pvr_goal)/2;
-    double goal = (p[i]*(1-p[i])-Q1[i])*(1 - pvr_goal)/(2*pvr_goal);
+    // double goal = (p[i]*(1-p[i])-Q1[i])*(1 - pvr_goal)/(2*pvr_goal);
+    double goal = (beta-1)*(p[i]*(1-p[i])-Q1[i])/2;
     
     counter = 0;
     while(true){
@@ -365,7 +415,7 @@ const double &pvr_goal){
       }
       upper[i] += 1;
       if((counter+=1)>100){
-        std::cout<<"WARNING: BIG BOX, theta:"<<thetas<<", "<<", x:"<<start[i]<<", target:"<<target[i]<<"\n";
+        std::cout<<"WARNING: BIG BOX, beta:"<<beta<<", theta:"<<thetas<<", "<<", x:"<<start[i]<<", target:"<<target[i]<<"\n";
         break;
       }
     }
@@ -377,7 +427,7 @@ const double &pvr_goal){
       }
       lower[i] -= 1;
       if((counter+=1)>100){
-        std::cout<<"WARNING: BIG BOX, theta:"<<thetas<<", "<<", x:"<<start[i]<<", target:"<<target[i]<<"\n";
+        std::cout<<"WARNING: BIG BOX, beta:"<<beta<<", theta:"<<thetas<<", "<<", x:"<<start[i]<<", target:"<<target[i]<<"\n";
         break;
       }
     }
@@ -393,36 +443,36 @@ const double &pvr_goal){
     Q2_ *= Q2[i];
     Q3_ *= Q3[i];
   }
-  Rcpp::List results = Rcpp::List::create(Rcpp::Named("lower")=lower,Rcpp::Named("upper")=upper,Rcpp::Named("estimated_PVR_inf_box")=(Q1)/(p_*(1-p_)));
+  Rcpp::List results = Rcpp::List::create(Rcpp::Named("lower")=lower,Rcpp::Named("upper")=upper,Rcpp::Named("estimated_PVR_inf_box")=(Q1)/(p_*(1-p_)),Rcpp::Named("estimated_VRF_inf_box")=(p_*(1-p_))/(p_*(1-p_)-Q1_),Rcpp::Named("estimated_VRF")=(p_*(1-p_))/(p_*(1-p_)-Q1_+Q2_+Q3_));
   return(results);
 }
 
 //[[Rcpp::export]]
-Rcpp::List get_box_brownian_fast_list(const std::string &model_name, const Rcpp::NumericVector &thetas, 
-const Rcpp::NumericVector &tout_list, const Rcpp::NumericVector &tau_list, const Rcpp::NumericVector &start, const Rcpp::NumericMatrix &target_list,
-const double &pvr_goal){
+Rcpp::List get_box_brownian_fast_list(const std::string &model_name, const arma::vec &thetas, 
+const arma::vec &tout_list, const arma::vec &tau_list, const arma::vec &start, const arma::mat &target_list,
+const double &beta){
   int num_obs = tout_list.size();
   int num_species = start.size();
   double tout;
   double tau;
   double prev_tout=0;
-  Rcpp::NumericVector x = start;
-  Rcpp::NumericVector obs(num_species);
-  Rcpp::NumericMatrix lower_list(num_obs,num_species);
-  Rcpp::NumericMatrix upper_list(num_obs,num_species);
-  Rcpp::NumericVector lower(num_species);
-  Rcpp::NumericVector upper(num_species);
+  arma::vec x = start;
+  arma::vec obs(num_species);
+  arma::mat lower_list(num_obs,num_species);
+  arma::mat upper_list(num_obs,num_species);
+  arma::vec lower(num_species);
+  arma::vec upper(num_species);
   Rcpp::DataFrame box;
   for(int i=0;i<num_obs;++i){
     tout = tout_list[i]-prev_tout;
     tau = tau_list[i];    
-    obs = target_list(i,Rcpp::_);
-    box = get_box_brownian_fast(model_name,thetas,tout,tau,x,obs,pvr_goal);
-    lower = box["lower"];
-    upper = box["upper"];
-    lower_list(i,Rcpp::_) = lower;
-    upper_list(i,Rcpp::_) = upper;
-    x = clone(obs);
+    obs = target_list.row(i);
+    box = get_box_brownian_fast(model_name,thetas,tout,tau,x,obs,beta);
+    lower = Rcpp::as<arma::vec>(box["lower"]);
+    upper = Rcpp::as<arma::vec>(box["upper"]);
+    lower_list.row(i) = lower;
+    upper_list.row(i) = upper;
+    x = (obs); // copy
     prev_tout = tout_list[i];
   }
   Rcpp::List list = Rcpp::List::create(Rcpp::Named("lower")=lower_list, Rcpp::Named("upper")=upper_list );
@@ -431,8 +481,8 @@ const double &pvr_goal){
 }
 
 //[[Rcpp::export]]
-double get_var_big_box_tau(const std::string &model_name, const Rcpp::NumericVector &start, const Rcpp::NumericVector &thetas, 
-const Rcpp::NumericVector &target, const double &tout, const double tau){
+double get_var_big_box_tau(const std::string &model_name, const arma::vec &start, const arma::vec &thetas, 
+const arma::vec &target, const double &tout, const double tau){
   double mu = get_mu(model_name,start,thetas)[0];
   double sig2 = get_var(model_name,start,thetas)[0];
   double RB_variance = 1/sqrt(4*M_PI*sig2*tau)*1/sqrt(2*M_PI*sig2*(tout-tau*0.5))*exp(-0.5*(target[0]-(start[0]+mu*tout))*(target[0]-(start[0]+mu*tout))/(sig2*(tout-tau*0.5)))-
@@ -445,8 +495,8 @@ const Rcpp::NumericVector &target, const double &tout, const double tau){
 }
 
 //[[Rcpp::export]]
-double get_PVR_big_box_tau(const std::string &model_name, const Rcpp::NumericVector &start, const Rcpp::NumericVector &thetas, 
-const Rcpp::NumericVector &target, const double &tout, const double tau){
+double get_PVR_big_box_tau(const std::string &model_name, const arma::vec &start, const arma::vec &thetas, 
+const arma::vec &target, const double &tout, const double tau){
   double mu = get_mu(model_name,start,thetas)[0];
   double sig2 = get_var(model_name,start,thetas)[0];
   double RB_variance = 1/sqrt(4*M_PI*sig2*tau)*1/sqrt(2*M_PI*sig2*(tout-tau/2))*exp(-0.5*(target[0]-(start[0]+mu*tout))*(target[0]-(start[0]+mu*tout))/(sig2*(tout-tau/2)))-
@@ -458,6 +508,64 @@ const Rcpp::NumericVector &target, const double &tout, const double tau){
   }
   return(PVR);
 }
+//[[Rcpp::export]]
+double get_VRF_big_box_tau(const std::string &model_name, const arma::vec &start, const arma::vec &thetas, 
+const arma::vec &target, const double &tout, const double tau){
+  if(tau==0){
+    return(1);
+  }
+  if(tau==tout){
+    return(INFINITY);
+  }
+  double mu = get_mu(model_name,start,thetas)[0];
+  double sig2 = get_var(model_name,start,thetas)[0];
+  // double RB_variance = 1/sqrt(4*M_PI*sig2*tau)*1/sqrt(2*M_PI*sig2*(tout-tau/2))*exp(-0.5*(target[0]-(start[0]+mu*tout))*(target[0]-(start[0]+mu*tout))/(sig2*(tout-tau/2)))-
+  //   1/(2*M_PI*sig2*tout)*exp(-0.5*(target[0]-start[0]-mu*tout)*(target[0]-start[0]-mu*tout)/(sig2*tout/2));
+  double p = 1/sqrt(2*M_PI*sig2*tout)*exp(-0.5*(target[0]-start[0]-mu*tout)*(target[0]-start[0]-mu*tout)/(sig2*tout));
+  double RB_variance = 1/sqrt(4*M_PI*sig2*tau)*1/sqrt(2*M_PI*sig2*(tout-tau/2))*exp(-0.5*(target[0]-(start[0]+mu*tout))*(target[0]-(start[0]+mu*tout))/(sig2*(tout-tau/2)));    
+  std::cout<<"E{X^2} = "<<RB_variance<<std::endl;
+  std::cout<<"E{X}^2 = "<<p*p<<std::endl;
+  RB_variance = RB_variance - p*p;
+  double VRF = (p*(1-p))/RB_variance;
+  if(VRF<1){
+    std::cout<<"Negative VRF: "<<VRF<<std::endl;
+    VRF = 1;
+  }
+  return(VRF);
+}
+
+//[[Rcpp::export]]
+double get_VRF_big_box_tau2(const std::string &model_name, const arma::vec &start, const arma::vec &thetas, 
+const arma::vec &target, const double &tout, const double tau){
+  if(tau==0){
+    return(1);
+  }
+  if(tau==tout){
+    return(INFINITY);
+  }
+  arma::vec mu = get_mu(model_name,start,thetas);
+  arma::mat covar = get_covar(model_name,start,thetas);
+  double p = get_MVT_density_hit(start,target,tout,mu,covar);
+  int d = mu.n_elem;
+  arma::mat covar_inv = arma::inv(covar);
+  arma::vec u = target-mu*tau;
+  arma::vec v = start + mu*(tout-tau);
+  arma::mat M = (tau*(tout-tau)/(2*tout-tau))*covar;
+  arma::vec b = covar_inv*(2/tau*u + 1/(tout-tau)*v);
+  // arma::vec b = (2/tau*covar_inv*u + 1/(tout-tau)*covar_inv*v);
+  arma::mat r = (2/tau)*u.t()*covar_inv*u + 1/(tout-tau)*v.t()*covar_inv*v;
+  // double RB_variance = exp(arma::as_scalar(-d*log(2*M_PI)-1.5*log(arma::det(covar))-log(tau)-0.5*log(tout-tau)-0.5*(-b.t()*M*b+r)+0.5*log(arma::det(M))))-p*p;
+  double RB_variance = pow(2*M_PI,-d)*pow(arma::det(covar),-1.5)*pow(tau,-d)*pow(tout-tau,-0.5*d)*
+  exp(-0.5*arma::as_scalar(-b.t()*M*b+r))*pow(arma::det(M),0.5);
+  RB_variance = RB_variance - p*p;
+  double VRF = (p*(1-p))/RB_variance;
+  if(VRF<1){
+    std::cout<<"Negative VRF: "<<VRF<<std::endl;
+    VRF = 1;
+  }
+  return(VRF);
+}
+
 
 int sign(const double &x){
   if (x > 0) return 1;
@@ -466,8 +574,8 @@ int sign(const double &x){
 }
 
 //[[Rcpp::export]]
-double get_tau(const std::string &model_name, const Rcpp::NumericVector &start, const Rcpp::NumericVector &thetas, 
-const Rcpp::NumericVector &target, const double &tout, const double &goal){
+double get_tau(const std::string &model_name, const arma::vec &start, const arma::vec &thetas, 
+const arma::vec &target, const double &tout, const double &alpha){
   double a = 0;
   double b = tout;
   double tol=0.00001;
@@ -475,10 +583,10 @@ const Rcpp::NumericVector &target, const double &tout, const double &goal){
   int counter = 0;
   while (abs(b - a) > tol){
     tau = (a + b) / 2;
-    if(get_PVR_big_box_tau(model_name,start,thetas,target,tout,tau) == goal){
+    if(get_VRF_big_box_tau(model_name,start,thetas,target,tout,tau) == alpha){
       return(tau);
     }
-    if(sign(get_PVR_big_box_tau(model_name,start,thetas,target,tout,a)-goal) == sign(get_PVR_big_box_tau(model_name,start,thetas,target,tout,tau)-goal)){
+    if(sign(get_VRF_big_box_tau(model_name,start,thetas,target,tout,a)-alpha) == sign(get_VRF_big_box_tau(model_name,start,thetas,target,tout,tau)-alpha)){
       a = tau;
     }
     else{
@@ -494,32 +602,60 @@ const Rcpp::NumericVector &target, const double &tout, const double &goal){
 }
 
 //[[Rcpp::export]]
-Rcpp::NumericVector get_tau_list(const std::string &model_name, const Rcpp::NumericVector &start, const Rcpp::NumericVector &thetas, 
-const Rcpp::NumericMatrix &obs_list, const Rcpp::NumericVector &tout_list, const double &goal){
+double get_tau2(const std::string &model_name, const arma::vec &start, const arma::vec &thetas, 
+const arma::vec &target, const double &tout, const double &alpha){
+  double a = 0;
+  double b = tout;
+  double tol=0.00001;
+  double tau;
+  int counter = 0;
+  while (abs(b - a) > tol){
+    tau = (a + b) / 2;
+    if(get_VRF_big_box_tau2(model_name,start,thetas,target,tout,tau) == alpha){
+      return(tau);
+    }
+    if(sign(get_VRF_big_box_tau2(model_name,start,thetas,target,tout,a)-alpha) == sign(get_VRF_big_box_tau2(model_name,start,thetas,target,tout,tau)-alpha)){
+      a = tau;
+    }
+    else{
+      b = tau;
+    }
+    counter += 1;
+    if(counter>1000){
+      std::cout<<"WARNING: TAU NOT FOUND. A:"<<a<<",B:"<<b<<std::endl;
+      return(-1);
+    }
+  }
+  return(b);
+}
+
+//[[Rcpp::export]]
+arma::vec get_tau_list(const std::string &model_name, const arma::vec &start, const arma::vec &thetas, 
+const arma::mat &obs_list, const arma::vec &tout_list, const double &alpha){
   int num_obs = obs_list.size();
-  Rcpp::NumericVector target(num_obs);
-  Rcpp::NumericVector x = start;
-  Rcpp::NumericVector tau_list(num_obs);
+  arma::vec target(num_obs);
+  arma::vec x = start;
+  arma::vec tau_list(num_obs);
   double tout;
   double prev_tout=0;
   for(int i=0;i<num_obs;++i){
-    target = obs_list(i,Rcpp::_);
+    target = obs_list.row(i);
     tout = tout_list[i];
-    tau_list[i] = get_tau(model_name,x,thetas,target,tout-prev_tout,goal);
-    x = clone(target);
+    tau_list[i] = get_tau(model_name,x,thetas,target,tout-prev_tout,alpha);
+    x = (target); // copy
     prev_tout=tout;
   }
   return(tau_list);
 }
 
 
-// Rcpp::DataFrame get_box_brownian_fast(const std::string &model_name, const Rcpp::NumericVector &thetas, 
-// const double &tout, const double &tau, const Rcpp::NumericVector &start, const Rcpp::NumericVector &target,
+// Rcpp::DataFrame get_box_brownian_fast(const std::string &model_name, const arma::vec &thetas, 
+// const double &tout, const double &tau, const arma::vec &start, const arma::vec &target,
 // const double &pvr_goal){
-//   Rcpp::NumericVector mu = get_mu(model_name,start,thetas);
-//   Rcpp::NumericVector var = get_var(model_name,start,thetas);
-//   Rcpp::NumericVector lower = clone(target);
-//   Rcpp::NumericVector upper = clone(target);
+//   arma::vec mu = get_mu(model_name,start,thetas);
+//   arma::vec var = get_var(model_name,start,thetas);
+//   arma::vec lower = clone(target);
+//   arma::vec upper = clone(target);
 //   double p = 1;
 //   int number_species = start.size();
 //   for(int i=0;i<number_species;++i){
@@ -567,3 +703,72 @@ const Rcpp::NumericMatrix &obs_list, const Rcpp::NumericVector &tout_list, const
 //   Rcpp::DataFrame results = Rcpp::DataFrame::create(Rcpp::Named("lower")=lower,Rcpp::Named("upper")=upper,Rcpp::Named("scale")=p*(1-p)/(Q1*(1-Q1)));
 //   return(results);
 // }
+
+// [[Rcpp::export]]
+arma::mat solve_brownian(const std::string &model_name, const arma::vec &start, const arma::vec &thetas, const double &tout, const double &dt){
+  std::random_device rd{};
+  // std::mt19937 gen{rd()};
+  std::default_random_engine gen;
+  gen.seed(rd());
+  std::normal_distribution<double> N(0.0,1.0);
+
+  arma::vec mu = get_mu(model_name,start,thetas);
+  arma::mat covar = get_covar(model_name,start,thetas);
+  // double p = get_MVT_density_hit(start,target,tout,mu,covar);
+  int d = mu.n_elem;
+  int m = tout/dt;
+  double sq_dt = sqrt(dt);
+  arma::mat covar_chol = arma::chol(covar);
+  arma::vec sample(d);
+  arma::vec prev_sample = start;
+  arma::mat brownian_path(m+1,d+1);
+  brownian_path(0,0) = 0;
+  for(int j=0;j<d;++j){
+    brownian_path(0,j+1)=start(j);
+  }  
+  for(int i=0; i<m; ++i){
+    for(int j=0; j<d; ++j){
+      sample(j) = N(gen);
+    } 
+    sample = prev_sample + mu*dt + covar_chol*sample*sq_dt;
+    brownian_path(i+1,0)=dt*(1+i);
+    for(int j=0; j<d;++j){
+      brownian_path(i+1,j+1)=sample(j);
+    }
+  prev_sample = sample;
+  }
+  return(brownian_path);
+}
+
+// [[Rcpp::export]]
+arma::vec monte_carlo_var_inf(const std::string &model_name, const arma::vec &start, const arma::vec &thetas,
+const arma::vec &obs, const double &tout, const double &tau, const double &dt, const int &B){
+  std::random_device rd{};
+  // std::mt19937 gen{rd()};
+  std::default_random_engine gen;
+  gen.seed(rd());
+  std::normal_distribution<double> N(0.0,1.0);
+
+  arma::vec mu = get_mu(model_name,start,thetas);
+  arma::mat covar = get_covar(model_name,start,thetas);
+  // double p = get_MVT_density_hit(start,target,tout,mu,covar);
+  int d = mu.n_elem;
+  int m = (tout-tau)/dt;
+  double sq_dt = sqrt(dt);
+  arma::mat covar_chol = arma::chol(covar);
+  arma::vec sample(d);
+  arma::vec prev_sample = start;
+  arma::vec monte_carlo(B);
+  for(int b=0;b<B;++b){
+    prev_sample = start;
+    for(int i=0; i<m; ++i){
+      for(int j=0; j<d; ++j){
+        sample(j) = N(gen);
+      } 
+      sample = prev_sample + mu*dt + covar_chol*sample*sq_dt;
+      prev_sample = sample;
+    }
+    monte_carlo(b) = get_MVT_density_hit(sample, obs, tau, mu, covar);
+  }
+  return(monte_carlo);
+}
