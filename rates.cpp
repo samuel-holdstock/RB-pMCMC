@@ -164,7 +164,7 @@ BDI_2::BDI_2(){
 }
 
 arma::vec LV::get_rates(const arma::vec &x, const arma::vec &theta){
-  double predator=x[0], prey=x[1]; // Define species
+  double prey=x[0], predator=x[1]; // Define species
   double alpha=theta[0], beta=theta[1], gamma=theta[2]; // Define parameters
   // alpha is the prey reproduction rate
   // beta is the predation rate
@@ -180,7 +180,7 @@ LV::LV(){
   num_reactions = 3;
   num_states = 2;
   num_params = 3;
-  values = {0, 1,-1, 
-            1,-1, 0};
+  values = {1,-1, 0, 
+            0, 1,-1};
   S = populate_matrix(values);
 }

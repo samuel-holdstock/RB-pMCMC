@@ -566,6 +566,10 @@ const arma::vec &target, const double &tout, const double tau){
   return(VRF);
 }
 
+//[[Rcpp::export]]
+arma::mat expm2(arma::mat Q){
+  return(arma::expmat(Q));
+}
 
 int sign(const double &x){
   if (x > 0) return 1;
@@ -632,16 +636,17 @@ const arma::vec &target, const double &tout, const double &alpha){
 //[[Rcpp::export]]
 arma::vec get_tau_list(const std::string &model_name, const arma::vec &start, const arma::vec &thetas, 
 const arma::mat &obs_list, const arma::vec &tout_list, const double &alpha){
-  int num_obs = obs_list.size();
-  arma::vec target(num_obs);
+  int num_obs = obs_list.n_rows;
+  int num_species = obs_list.n_cols;
+  arma::vec target(num_species);
   arma::vec x = start;
   arma::vec tau_list(num_obs);
   double tout;
   double prev_tout=0;
   for(int i=0;i<num_obs;++i){
-    target = obs_list.row(i);
+    target = obs_list.row(i).t();
     tout = tout_list[i];
-    tau_list[i] = get_tau(model_name,x,thetas,target,tout-prev_tout,alpha);
+    tau_list[i] = get_tau2(model_name,x,thetas,target,tout-prev_tout,alpha);
     x = (target); // copy
     prev_tout=tout;
   }

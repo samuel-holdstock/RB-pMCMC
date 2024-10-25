@@ -31,4 +31,6 @@ arma::vec lower,
 arma::vec upper
 );
 
+int get_noise_index(arma::vec noise_lower,arma::vec noise_upper,arma::vec lower,arma::vec upper,arma::vec coords);
+
 #endif

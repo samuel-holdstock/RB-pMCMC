@@ -64,7 +64,7 @@ get_box = function(model_name,theta,tout_list,tau,x0,obs_list,pvr_goal){
     return(list(lower=as.matrix(unname(lower_list)), upper=as.matrix(unname(upper_list))))
 }
 
-plot_RB_MJP = function(model_name, x0, theta, tout_list,lower_list,upper_list, tau, obs_list, M, species_names,species_col,ylims){
+plot_RB_MJP = function(model_name, x0, theta, tout_list,lower_list,upper_list, tau_list, obs_list, M, species_names,species_col,ylims){
     num_obs = nrow(obs_list)
     num_species = ncol(obs_list)
     tout = tout_list[num_obs]
@@ -74,6 +74,7 @@ plot_RB_MJP = function(model_name, x0, theta, tout_list,lower_list,upper_list, t
         upper = upper_list[i,]
         obs = obs_list[i,]
         tout = tout_list[i]
+        tau = tau_list[i]
         add_box(lower,upper,tout,tau,species_col)
         add_obs(tout,obs,species_col)
     }

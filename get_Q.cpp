@@ -131,3 +131,61 @@ std::function<arma::vec(const arma::vec &x, const arma::vec &theta)> rates_funct
     return(Q);
 }
 
+//[[Rcpp::export]]
+int get_noise_index(arma::vec noise_lower,arma::vec noise_upper,arma::vec lower,arma::vec upper,arma::vec coords){
+  int noise_lower_index = state_to_index(noise_lower,lower,upper);
+  int num_params = noise_lower.n_elem;
+  arma::vec index_jumps(num_params);
+  index_jumps(0) = 1;
+  int index = noise_lower_index+coords(0);
+  for(int i=0;i<(num_params-1);++i){
+    index_jumps(i+1) = upper(num_params-1-i)-lower(num_params-1-i)+1;
+    index_jumps(i+1) = index_jumps(i+1)*index_jumps(i);
+    index = index + index_jumps(i+1)*coords(i+1);
+  }
+  return(index);
+}
+
+//[[Rcpp::export]]
+arma::mat get_noise_indices(arma::vec noise_lower,arma::vec noise_upper,arma::vec lower,arma::vec upper){
+  int num_params = noise_lower.n_elem;
+  arma::vec noise_width(num_params);
+  int counter=0;
+  int size=1;
+  for(int i=0;i<num_params;++i){
+    noise_width(i)=noise_upper(num_params-1-i)-noise_lower(num_params-1-i)+1;
+    size=size*noise_width(i);
+  }
+  arma::mat noise_indices(size,num_params);
+  arma::vec digits(num_params);
+  int row=0;
+  while(true){
+    for(int i=num_params-1;i>=0;--i){
+        // std::cout<<digits(i)<<" ";
+        noise_indices(row,i)=digits(i);
+    }
+    std::cout<<row<<std::endl;
+    row=row+1;
+    // std::cout<<std::endl;
+    int pos=0;
+    while(pos<num_params){
+        counter++;
+        if(counter>10000){
+            std::cout<<"TOO LONG"<<std::endl;
+            return(noise_indices);
+        }
+        digits(pos)++;
+        if(digits(pos)<=noise_width(pos)){
+            break;
+        }
+        else{
+            digits(pos)=0;
+            pos++;
+        }
+    }
+    if(pos==num_params){
+        break;
+    }
+  }
+  return(noise_indices);
+}

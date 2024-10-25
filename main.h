@@ -4,6 +4,8 @@
 #include <iostream>
 #include <random>
 #include <memory>
+#include <unordered_map>
+#include <string>
 
 #include "utils/rexpQ.h"
 #include "get_Q.h"

@@ -20,18 +20,11 @@ Rcpp::List gillespie_alg(const arma::vec &x0, const arma::vec &theta, const arma
   bool set_xttau = false;
   int counter = 0;
   bool inS=true;
-  for(int i=0; i<n_spec; ++i){
-    if (lower[i] > xcurr[i] || xcurr[i] > upper[i]){
-      inS = FALSE;
-      break;
-    }
-  }
-
   while (tnext<tout) {
     counter+=1;
     for(int i=0; i<n_spec; ++i){
       if(counter>2400){
-        // std::cout<<"WARNING: GILLESPIE DIVERGE."<<std::endl;
+        std::cout<<"WARNING: GILLESPIE DIVERGE."<<std::endl;
         Rcpp::List results = Rcpp::List::create(Rcpp::Named("xttau_data")=xcurr, Rcpp::Named("inS")=inS, Rcpp::Named("xt_data")=xcurr);
         return(results);
       }
@@ -41,7 +34,7 @@ Rcpp::List gillespie_alg(const arma::vec &x0, const arma::vec &theta, const arma
       set_xttau  = true;
       for(int i=0; i<n_spec; ++i){
         if (lower[i] > xcurr[i] || xcurr[i] > upper[i]){
-          inS = FALSE;
+          inS = false;
           break;
         }
       }
@@ -59,7 +52,7 @@ Rcpp::List gillespie_alg(const arma::vec &x0, const arma::vec &theta, const arma
     if(tout-tau <= tcurr){
       for(int i=0; i<n_spec; ++i){
           if (lower[i] > xcurr[i] || xcurr[i] > upper[i]){
-              inS = FALSE;
+              inS = false;
               break;
           }
       }
@@ -72,7 +65,7 @@ Rcpp::List gillespie_alg(const arma::vec &x0, const arma::vec &theta, const arma
     xttau_data = xcurr;
     for(int i=0; i<n_spec; ++i){
       if (lower[i] > xcurr[i] || xcurr[i] > upper[i]){
-          inS = FALSE;
+          inS = false;
           break;
       }
     }
@@ -92,7 +85,7 @@ Rcpp::List gillespie_alg_entire(const arma::vec &x0, const arma::vec &theta, con
   arma::vec r=rates_function(xcurr,theta);
   rtot=sum(r);
   tnext=tcurr-log(R::runif(0,1))/rtot; // add Exp(rtot)
-  bool inS=TRUE;
+  bool inS=true;
   arma::vec xttau_data(n_spec+1);
   arma::mat data(0,n_spec+1);
   bool set_xttau = false;
@@ -104,7 +97,7 @@ Rcpp::List gillespie_alg_entire(const arma::vec &x0, const arma::vec &theta, con
       set_xttau = true;
       for(int i=0; i<n_spec; ++i){
           if (lower[i] > xcurr[i] || xcurr[i] > upper[i]){
-              inS = FALSE;
+              inS = false;
               break;
           }
       }
@@ -123,7 +116,7 @@ Rcpp::List gillespie_alg_entire(const arma::vec &x0, const arma::vec &theta, con
     if(tout-tau <= tcurr){
       for(int i=0; i<n_spec; ++i){
           if (lower[i] > xcurr[i] || xcurr[i] > upper[i]){
-              inS = FALSE;
+              inS = false;
               break;
           }
       }
@@ -136,7 +129,7 @@ Rcpp::List gillespie_alg_entire(const arma::vec &x0, const arma::vec &theta, con
     xttau_data = xcurr;
     for(int i=0; i<n_spec; ++i){
       if (lower[i] > xcurr[i] || xcurr[i] > upper[i]){
-          inS = FALSE;
+          inS = false;
           break;
       }
     }

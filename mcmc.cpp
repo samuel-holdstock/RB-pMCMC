@@ -18,9 +18,10 @@ const arma::mat &obs_list, const arma::vec &tout_list, const int &iterations, co
   double theta_ll = get_likelihood_RB(model_name,start,exp(log_theta),obs_list,tout_list,num_particles);
   double theta_posterior = get_prior(log_theta)+theta_ll;
   double acceptance=0;
+  double scale = sqrt(2.38*2.38/num_params);
   for(int i=0;i<iterations;++i){
     // log_psi = propose_psi(log_theta); 
-    log_psi = log_theta + offsets.row(i)*1.374;
+    log_psi = log_theta + offsets.col(i)*scale;
     std::cout<<"Iteration:"<<i<<", Acceptance:"<<acceptance/(i+1)<<", Proposal"<<log_psi<<std::endl;;
     psi_ll = get_likelihood_RB(model_name,start,exp(log_psi),obs_list,tout_list,num_particles);
     psi_posterior = get_prior(log_psi)+psi_ll;
@@ -65,10 +66,11 @@ const arma::mat &obs_list, const arma::vec &tout_list, const int &iterations, co
   double theta_ll = get_likelihood_frac(model_name,start,exp(log_theta),obs_list,tout_list,num_particles);
   double theta_posterior = get_prior(log_theta)+theta_ll;
   double acceptance=0;
+  double scale = sqrt(2.38*2.38/num_params);
   for(int i=0;i<iterations;++i){
     // log_psi = propose_psi(log_theta);    
     // log_psi = log_theta + offsets.row(i)*1.5;
-    log_psi = log_theta + offsets.row(i)*1.374; 
+    log_psi = log_theta + offsets.col(i)*scale; 
     std::cout<<"Iteration:"<<i<<", Acceptance:"<<acceptance/(i+1)<<", Proposal"<<log_psi<<std::endl;;
     psi_ll = get_likelihood_frac(model_name,start,exp(log_psi),obs_list,tout_list,num_particles);
     psi_posterior = get_prior(log_psi)+psi_ll;
@@ -121,12 +123,18 @@ const arma::mat &obs_list, const arma::vec &tout_list, const int &num_particles)
   return(likelihood);
 }
 
+// // [[Rcpp::export]]
+// arma::mat mvrnormArma(int n, arma::mat sigma) {
+//    int ncols = sigma.n_cols;
+//    arma::mat Y = arma::randn(n, ncols);
+//   //  return arma::repmat(mu, 1, n).t() + Y * arma::chol(sigma);
+//    return(Y * arma::chol(sigma));
+// }
 // [[Rcpp::export]]
 arma::mat mvrnormArma(int n, arma::mat sigma) {
    int ncols = sigma.n_cols;
-   arma::mat Y = arma::randn(n, ncols);
-  //  return arma::repmat(mu, 1, n).t() + Y * arma::chol(sigma);
-   return(Y * arma::chol(sigma));
+   arma::mat Y = arma::randn(ncols,n);
+   return(arma::chol(sigma)*Y);
 }
 
 //[[Rcpp::export]]

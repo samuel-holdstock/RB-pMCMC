@@ -11,5 +11,3 @@ data_chain = get_chain(data,tout)
 plot_chain(data_chain,c("Susceptible","Infected","Removed"),c("blue","darkgreen","red"),ylim=c(0,1000))
 add_box(lower,upper,tout,tau,c("blue","darkgreen"))
 add_obs(tout,obs,c("blue","darkgreen"))
-
-
