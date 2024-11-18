@@ -77,7 +77,7 @@ double get_f(const arma::vec &xt, const arma::vec &yt){
   arma::vec zt = xt-yt;
   int d = zt.size();
   double f = 1;
-  double noise_sd = 2;
+  double noise_sd = 1;
   for(int i=0;i<d;++i){
     f = f*R::dnorm(zt(i),0,noise_sd,0);
   }
@@ -264,6 +264,49 @@ arma::mat sample_x(const arma::vec &resample_vec_xttau, std::unordered_map<std::
   }
   return(next_x);
 }
+std::pair<arma::mat,arma::vec> sample_x_gibbs(std::vector<std::pair<std::pair<arma::vec,int>,double>> &resample_vec, const int &M, Swarm &swarm){
+  int xt_size = resample_vec.size(); 
+  double normalise_constant = 0;
+  int num_species = resample_vec[0].first.first.size();
+
+  for(const auto &entry : resample_vec){
+    normalise_constant += entry.second;
+  }
+  std::vector<double> probabilities;
+  for(auto &entry : resample_vec){
+    entry.second /= normalise_constant;
+    if(probabilities.empty()){
+      probabilities.push_back(entry.second);
+    }
+    else{
+      probabilities.push_back(entry.second+probabilities.back());
+    }
+  }
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<> dis(0.0,1.0);
+  arma::mat next_x(M,num_species);
+  std::vector<string> samples;
+  samples.reserve(M);
+  arma::vec parent_indices(M);
+  std::pair<arma::vec,int> state;
+  double probability;
+  double rand_num;
+  for(int i=0;i<M;++i){
+    rand_num = dis(gen);
+    auto it = std::lower_bound(probabilities.begin(),probabilities.end(),rand_num);
+    int index = std::distance(probabilities.begin(),it); 
+    next_x.row(i) = resample_vec[index].first.first.t();
+    // parent_indices(i) = resample_vec[index].first.second;
+    // parent_indices(i) = index;
+    parent_indices(i) = i;
+    state = std::make_pair(next_x.row(i).t(),parent_indices(i));
+    probability = probabilities[index];
+    swarm.add_state(state,probability);
+  }  
+  swarm.push_state();
+  return(make_pair(next_x,parent_indices));
+}
 
 std::pair<arma::mat,double> RB_noise(std::string str, const arma::mat &x0, const arma::vec &theta, double tout,
                   const arma::vec &lower, const arma::vec &upper, double tau,
@@ -293,6 +336,41 @@ std::pair<arma::mat,double> RB_noise(std::string str, const arma::mat &x0, const
   return(result);
 }
 
+std::pair<std::pair<arma::mat,arma::vec>,double> RB_noise_gibbs(std::string str, const std::pair<arma::mat,arma::vec> &x0_pair, const arma::vec &theta, double tout,
+                  const arma::vec &lower, const arma::vec &upper, double tau,
+                  const arma::vec &obs, int M, 
+                  Swarm &swarm, arma::vec &numInS, int &obs_index){
+  std::function<arma::vec(const arma::vec &x, const arma::vec &theta)> rates_function = get_rate_function(str);
+  arma::mat S = get_S(str);
+  arma::mat Q = get_coffin_matrix(str,lower,upper,theta).t();
+  arma::mat P = arma::expmat(Q*tau);
+  arma::vec f = get_ft(lower,upper,obs,P);
+  int tau_index;
+  Rcpp::List estimate;
+  std::vector<std::pair<std::pair<arma::vec,int>,double>> resample_vec;
+  double estimator = 0;
+  bool inS;
+  arma::vec x;
+  int parent_index;
+  arma::vec fP;
+  for(int i=0;i<M;++i){
+    x = x0_pair.first.row(i).t();
+    parent_index = x0_pair.second(i);
+    estimate = run_algorithm(str,x,theta, tout, lower, upper, tau);
+    estimator += get_estimate_noise_P(estimate,lower,upper,P,obs,(f.t()*P).t());
+    inS = estimate["inS"];
+    numInS[obs_index] = numInS[obs_index] + inS;
+    resample_vec.push_back(make_pair(std::make_pair(estimate["xt_data"],parent_index),get_f(estimate["xt_data"],obs)*(1-inS)));
+    fP = f%P.col(state_to_index(estimate["xttau_data"],lower,upper));
+    for(int j=0;j<fP.size()-1;++j){
+      resample_vec.push_back(make_pair(make_pair(index_to_state(j,lower,upper),parent_index),fP(j)));
+    }
+  }
+  std::pair<arma::mat,arma::vec> next_x = sample_x_gibbs(resample_vec,M,swarm);
+  std::pair<std::pair<arma::mat,arma::vec>,double> result = std::make_pair(next_x, estimator/M);
+  return(result);
+}
+
 //[[Rcpp::export]]
 double RB_list(std::string str, const arma::vec &x0, const arma::vec &theta, arma::vec tout_list,
                   const arma::mat &lower_list, const arma::mat &upper_list, arma::vec tau_list,
@@ -308,9 +386,9 @@ double RB_list(std::string str, const arma::vec &x0, const arma::vec &theta, arm
   double prev_time = 0;
   double log_prob = 0;
   for(int i=0; i<num_obs; ++i){
-    lower = lower_list.row(i);
-    upper = upper_list.row(i);
-    obs = obs_list.row(i);
+    lower = lower_list.row(i).t();
+    upper = upper_list.row(i).t();
+    obs = obs_list.row(i).t();
     tout = tout_list(i)-prev_time;
     tau = tau_list[i];
     log_prob += log(RB(str,x,theta,tout,lower,upper,tau,obs,M));
@@ -383,6 +461,28 @@ double frac_noise(std::string str, const arma::vec &x0, const arma::vec &theta, 
   return(estimator/M);
 }
 
+std::pair<std::pair<arma::mat,arma::vec>,double> frac_noise_gibbs(std::string str, const std::pair<arma::mat,arma::vec> &x0_pair, const arma::vec &theta, double tout,
+                  const arma::vec &obs, int M, 
+                  Swarm &swarm){
+  std::function<arma::vec(const arma::vec &x, const arma::vec &theta)> rates_function = get_rate_function(str);
+  Rcpp::List estimate;
+  std::vector<std::pair<std::pair<arma::vec,int>,double>> resample_vec;
+  double estimator = 0;
+  arma::vec x;
+  int parent_index;
+  for(int i=0;i<M;++i){
+    x = x0_pair.first.row(i).t();
+    parent_index = x0_pair.second(i);
+    estimate = run_algorithm_frac(str,x,theta, tout);
+    estimator += get_estimate_frac_noise(estimate,obs);
+    resample_vec.push_back(make_pair(std::make_pair(estimate["xt_data"],parent_index),get_f(estimate["xt_data"],obs)));
+  }
+  std::pair<arma::mat,arma::vec> next_x = sample_x_gibbs(resample_vec,M,swarm);
+  std::pair<std::pair<arma::mat,arma::vec>,double> result = std::make_pair(next_x, estimator/M);
+  return(result);
+}
+
+
 //[[Rcpp::export]]
 double frac_list(std::string str, const arma::vec &x0, const arma::vec &theta, arma::vec tout_list,
                   const arma::mat &obs_list, int M){
@@ -417,7 +517,7 @@ double frac_particle_filter(std::string str, const arma::vec &x0, const arma::ve
   double prev_time = 0;
   double log_prob = 0;
   for(int i=0; i<num_obs; ++i){
-    obs = obs_list.row(i);
+    obs = obs_list.row(i).t();
     tout = tout_list(i)-prev_time;
     log_prob += log(frac_noise(str,x,theta,tout,obs,M));
     if(isinf(log_prob)){
@@ -427,4 +527,70 @@ double frac_particle_filter(std::string str, const arma::vec &x0, const arma::ve
     prev_time = tout_list(i);
   }
   return(log_prob);
+}
+
+//[[Rcpp::export]]
+Rcpp::List RB_particle_filter_gibbs(std::string str, const arma::vec &x0, const arma::vec &theta, arma::vec tout_list,
+                  const arma::mat &lower_list, const arma::mat &upper_list, arma::vec tau_list,
+                  const arma::mat &obs_list, int M){
+  int num_obs = tout_list.n_elem;
+  int num_species = x0.n_elem;
+  arma::vec lower(num_species);
+  arma::vec upper(num_species);
+  arma::vec obs(num_species);
+  double tout;
+  double tau;
+  arma::vec parent_index = arma::vec(M);
+  std::pair<arma::mat,arma::vec> x = std::make_pair(arma::repmat(x0.t(),M,1),parent_index);
+  double prev_time = 0;
+  double log_prob = 0;
+  std::pair<std::pair<arma::mat,arma::vec>,double> result;
+  Swarm swarm;
+  arma::vec numInS(num_obs);
+  for(int i=0; i<num_obs; ++i){
+    lower = lower_list.row(i).t();
+    upper = upper_list.row(i).t();
+    obs = obs_list.row(i).t();
+    tout = tout_list(i)-prev_time;
+    tau = tau_list[i];
+    result = RB_noise_gibbs(str,x,theta,tout,lower,upper,tau,obs,M,swarm,numInS,i);
+    log_prob += log(result.second);
+    if(isinf(log_prob)){
+      return(log_prob);
+    }
+    x = result.first; // copy
+    prev_time = tout_list(i);
+  }
+  arma::mat path = swarm.get_path();
+  Rcpp::List results = Rcpp::List::create(Rcpp::Named("path")=path,Rcpp::Named("ll")=log_prob, Rcpp::Named("numInS")=numInS);
+  return(results);
+}
+
+//[[Rcpp::export]]
+Rcpp::List frac_particle_filter_gibbs(std::string str, const arma::vec &x0, const arma::vec &theta, arma::vec tout_list,
+                  const arma::mat &obs_list, int M){
+  int num_obs = tout_list.n_elem;
+  int num_species = x0.n_elem;
+  arma::vec obs(num_species);
+  double tout;
+  arma::vec parent_index = arma::vec(M);
+  std::pair<arma::mat,arma::vec> x = std::make_pair(arma::repmat(x0.t(),M,1),parent_index);
+  double prev_time = 0;
+  double log_prob = 0;
+  std::pair<std::pair<arma::mat,arma::vec>,double> result;
+  Swarm swarm;
+  for(int i=0; i<num_obs; ++i){
+    obs = obs_list.row(i).t();
+    tout = tout_list(i)-prev_time;
+    result = frac_noise_gibbs(str,x,theta,tout,obs,M,swarm);
+    log_prob += log(result.second);
+    if(isinf(log_prob)){
+      return(log_prob);
+    }
+    x = result.first; // copy
+    prev_time = tout_list(i);
+  }
+  arma::mat path = swarm.get_path();
+  Rcpp::List results = Rcpp::List::create(Rcpp::Named("path")=path,Rcpp::Named("ll")=log_prob);
+  return(results);
 }

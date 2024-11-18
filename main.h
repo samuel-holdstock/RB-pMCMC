@@ -14,6 +14,7 @@
 #include "brownian.h"
 #include "exact.h"
 #include "mcmc.h"
+#include "utils/swarm.h"
 
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
@@ -51,10 +52,19 @@ double RB(std::string str, const arma::vec &x0, const arma::vec &theta, double t
 double RB_list(std::string str, const arma::vec &x0, const arma::vec &theta, arma::vec tout_list,
                   const arma::mat &lower_list, const arma::mat &upper_list, arma::vec tau_list,
                   const arma::mat &obs_list, int M);
+double RB_particle_filter(std::string str, const arma::vec &x0, const arma::vec &theta, arma::vec tout_list,
+                  const arma::mat &lower_list, const arma::mat &upper_list, arma::vec tau_list,
+                  const arma::mat &obs_list, int M);
+Rcpp::List RB_particle_filter_gibbs(std::string str, const arma::vec &x0, const arma::vec &theta, arma::vec tout_list,
+                  const arma::mat &lower_list, const arma::mat &upper_list, arma::vec tau_list,
+                  const arma::mat &obs_list, int M);
 
 double frac(std::string str, const arma::vec &x0, const arma::vec &theta, double tout,
                   const arma::vec &obs, int M);
-
+double frac_particle_filter(std::string str, const arma::vec &x0, const arma::vec &theta, arma::vec tout_list,
+                  const arma::mat &obs_list, int M);
+Rcpp::List frac_particle_filter_gibbs(std::string str, const arma::vec &x0, const arma::vec &theta, arma::vec tout_list,
+                  const arma::mat &obs_list, int M);
 #endif
 
 
