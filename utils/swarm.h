@@ -7,9 +7,6 @@
 #include <unordered_map>
 #include <string>
 
-#include <RcppArmadillo.h>
-// [[Rcpp::depends(RcppArmadillo)]]
-
 class Swarm {
   public: 
     Swarm();

@@ -1,0 +1,430 @@
+set.seed(1)
+pred = 100
+prey = 100
+
+alpha = 0.5
+beta = 0.0025
+gamma = 0.3
+
+x = c(prey,pred)
+theta = c(alpha,beta,gamma)
+
+tout_list = c(1:6)*1
+tout_list = 1
+obs_list = get_obs("LV", x, theta, tout_list)
+width = 8
+lower_list = get_lower("LV",obs_list,c(width,width))
+upper_list = get_upper("LV",obs_list,c(width,width))
+tau_list = get_tau_list("LV",x,theta,obs_list,tout_list,20)
+obs_list
+
+# Noisy Obs
+NOISE = 0.01
+obs_list_noise = obs_list
+# obs_list_noise = obs_list + rnorm(prod(dim(obs_list)),mean=0,sd=NOISE)
+
+plot_RB_MJP("LV",x,theta,tout_list,lower_list,upper_list,tau_list,obs_list_noise,20,c('Prey','Predator'),c('blue','red'),c(0,400))
+plot_RB_MJP("LV",x,c(0.5,0.0025,0.3),tout_list,lower_list,upper_list,tau_list,obs_list_noise,20,c('Prey','Predator'),c('blue','red'),c(0,400))
+
+plot_RB_MJP("LV",x,theta,tout_list,lower_list,upper_list,tau_list,obs_list,20,c('Prey','Predator'),c('blue','red'),c(50,150))
+
+z2 = test_frac("LV",x,theta,tout_list[1],lower_list[1,],upper_list[1,],tau_list[1],1000)*10^(-6)
+z1 = test_RB("LV",x,theta,tout_list[1],lower_list[1,],upper_list[1,],tau_list[1],1000)*10^(-6)
+
+plot(z1,ylim=range(c(z1,z2)))
+points(z2,col='blue')
+
+sum(z1)
+sum(z2)
+
+microbenchmark(
+  B={test_frac("LV",x,theta,tout_list[1],lower_list[1,],upper_list[1,],tau_list[1],1000)*10^(-6)},
+  A={test_RB("LV",x,theta,tout_list[1],lower_list[1,],upper_list[1,],tau_list[1],1000)*10^(-6)},
+  unit='ms',times=1000
+)
+
+set.seed(1)
+d1 = RB_particle_filter_debug("LV",x,c(0.5,0.0025,0.3),tout_list,lower_list,upper_list,tau_list,obs_list_noise,1000)
+d1[[1]]$gillespie_time*10^(-6)
+d1[[1]]$exp_time*10^(-6)
+box_details(d1,tout_list)
+for(i in 1:length(tout_list)){
+  print(c(paste0("Obs ",i),
+    # sum(d2[[i]]$weights)^2/sum(d2[[i]]$weights^2),
+    sum(d1[[i]]$particle_weights)^2/sum(d1[[i]]$particle_weights^2),
+    sum(d3[[i]]$particle_weights)^2/sum(d3[[i]]$particle_weights^2)
+  ))
+}
+
+
+Q = get_coffin_matrix("LV",lower_list[1,]-3,upper_list[1,]+3,theta)
+test_time1 = function(){
+  t1_ = get_nanotime()
+  d1 = RB_particle_filter_debug("LV",x,c(0.5,0.0025,0.3),tout_list,lower_list-1,upper_list+1,tau_list,obs_list_noise,1000)
+  t2_ = get_nanotime()
+  return(d1)
+  return(list(d1,(t2_-t1_)*10^(-6)))
+}
+d1 = test_time1()
+sum(sapply(1:6,function(x){d1[[x]]$exp_time}))*10^(-6)
+sum(sapply(1:6,function(x){d1[[x]]$gillespie_time}))*10^(-6)
+
+test_time2 = function(){
+  t1_ = get_nanotime()
+  for(i in tout_list){
+    Q = get_coffin_matrix("LV",lower_list[i,]-1,upper_list[i,]+1,theta)
+    cexpm2(Q*tau_list[i])
+  }
+  t2_ = get_nanotime()
+  return((t2_-t1_)*10^(-6))
+}
+
+times1 = list()
+for(i in 1:10){
+  times1[[i]] = test_time1()
+}
+sapply(1:10,function(z){
+  sum(sapply(1:6,function(x){times1[[z]][[x]]$exp_time}))*10^(-6)
+})
+
+gc()
+times1 = rep(NA,1000)
+for(i in 1:1000){
+  times1[i] = test_time1()
+}
+times2 = rep(NA,1000)
+for(i in 1:1000){
+  times2[i] = test_time2()
+}
+head(times1,16)
+head(times2,16)
+plot(times1,col='blue')
+plot(times2,col='red')
+z=microbenchmark(
+  A={test_time1()},
+  B={test_time2()}
+)
+plot(z)
+
+Q*tau_list[1]
+
+
+microbenchmark(
+  Chris = test_time1(),
+  ARMA = test_time2())
+
+
+d2 = frac_particle_filter_debug("LV",x,theta,tout_list,obs_list_noise,1000)
+d2[[1]]$gillespie_time*10^(-6)
+d2[[1]]$entire_time*10^(-6)
+
+c(d1[[1]]$exp_time*10^(-6),d1[[1]]$entire_time*10^(-6))
+c(d3[[1]]$exp_time*10^(-6),d3[[1]]$entire_time*10^(-6))
+c(d2[[1]]$entire_time*10^(-6))
+
+
+d1 = RB_particle_filter_debug("LV",x,theta,tout_list,lower_list,upper_list,tau_list,obs_list_noise,50000)
+d2 = frac_particle_filter_debug("LV",x,theta,tout_list,obs_list_noise,50000)
+d3 = RB_particle_filter_debug("LV",x,theta,tout_list,predicted_lower,predicted_upper,tau_list,obs_list_noise,50000)
+
+for(i in 1:length(tout_list)){
+  print(c(paste0("Obs ",i),
+    # sum(d2[[i]]$weights)^2/sum(d2[[i]]$weights^2),
+    sum(d1[[i]]$particle_weights)^2/sum(d1[[i]]$particle_weights^2)
+    # sum(d3[[i]]$particle_weights)^2/sum(d3[[i]]$particle_weights^2)
+  ))
+}
+box_details(d1,tout_list)
+box_details(d3,tout_list)
+theta=c(0.5,0.0025,0.3)
+time =5
+
+plot(jitter(d1[[time]]$xt_data),col='blue',pch='x')
+points(jitter(d1[[time]]$xttau_data),xlim=c(90,130),ylim=c(90,130),col='red',pch='o')
+V = diag(2)*5
+
+predicted_mean = get_predicted_mean_matrix("LV",tau_list*0/3,x,obs_list,tout_list,theta,V)
+predicted_lower = get_predicted_lower_matrix("LV",tau_list*0/3,x,obs_list,tout_list,theta,c(width,width),V)
+predicted_upper = get_predicted_upper_matrix("LV",tau_list*0/3,x,obs_list,tout_list,theta,c(width,width),V)
+plot_box(obs_list,time,lower_list,upper_list,'darkgreen')
+plot_box(predicted_mean,time,predicted_lower,predicted_upper,'darkmagenta')
+
+predicted_obs = solve_xt_mu("LV",obs_list[time-1,],tout_list[time]-tout_list[time-1]-tau_list[time],theta,5)
+points(x=predicted_obs[1,],y=predicted_obs[2,],pch='X',cex=1.5,col='orange')
+points(x=(obs_list[time-1,]+(1-tau_list[time]*1/2)*get_mu("LV",obs_list[time-1,],theta))[1,],
+y=(obs_list[time-1,]+(1-tau_list[time]*1/2)*get_mu("LV",obs_list[time-1,],theta))[2,],pch='X',cex=1.5,col='orange',)
+
+
+
+M = 300
+boot1 = rep(0,M)
+RB_particles = 700
+for(i in 1:M){
+  boot1[i] = RB_particle_filter("LV",x,theta,tout_list, lower_list, upper_list,tau_list,obs_list_noise,RB_particles)
+}
+var(boot1)
+var(exp(boot1))/mean(exp(boot1))^2
+
+boot2 = rep(0,M)
+frac_particles = 10000
+for(i in 1:M){
+  boot2[i] = frac_particle_filter("LV",x,theta,tout_list,obs_list_noise,frac_particles)
+}
+var(boot2)
+var(exp(boot2))/mean(exp(boot2))^2
+
+boot3 = rep(0,M)
+RB_particles = 700
+for(i in 1:M){
+  boot3[i] = RB_list("LV",x,theta,tout_list,lower_list,upper_list,tau_list,obs_list_noise,RB_particles)
+}
+var(boot3)
+var(exp(boot3))/mean(exp(boot3))^2
+
+RB_particle_filter("LV",x,theta,tout_list,lower_list,upper_list,tau_list,obs_list_noise,1000)
+RB_list("LV",x,theta,tout_list,lower_list,upper_list,tau_list,obs_list_noise,1000)
+plot(density(boot1))
+lines(density(boot2),col='blue')
+
+set.seed(1)
+RB_particles = 1200
+time_RB = Sys.time()
+r1 = mcmc_RB("LV",x,theta, obs_list_noise, lower_list,upper_list, tout_list, 5000, RB_particles,C*1.5)
+plot(density(r1$log_posterior[,1]))
+abline(v=log(theta[1]))
+time_RB = Sys.time()-time_RB
+
+effectiveSize(cbind(r1$log_posterior,r1$ll))
+C = cov(r1$log_posterior)
+
+
+time_frac = Sys.time()
+r2 = mcmc_frac("LV",x,theta, obs_list, tout_list, 100, frac_particles,diag(3))
+time_frac = Sys.time()-time_frac
+
+time_RB2 = Sys.time()
+r3 = mcmc_RB("LV",x,theta, obs_list_noise, predicted_lower,predicted_upper, tout_list, 10000, RB_particles,diag(3))
+time_RB2 = Sys.time()-time_RB2
+
+r1$acceptance_rate # 0.5583
+r2$acceptance_rate # 0.4779
+r3$acceptance_rate # 0.5609
+
+effectiveSize(r1$ll) # 1685.759
+effectiveSize(r2$ll) # 1510.364
+effectiveSize(r3$ll) # 2004.543
+
+plot(density(r1$log_posterior[,1]))
+plot(density(r1$log_posterior[,2]))
+plot(density(r1$log_posterior[,3]))
+
+M = 750
+B = 10000
+k1 = rep(0,B)
+k2 = rep(0,B)
+k3 = rep(0,B)
+k4 = rep(0,B)
+for(i in 1:B){
+  k1[i] = RB_particle_filter("LV",x,theta,tout_list, lower_list, upper_list,tau_list,obs_list,M)
+  k2[i] = RB_list("LV",x,theta,tout_list, lower_list, upper_list,tau_list,obs_list,M)
+  k3[i] = frac_particle_filter("LV",x,theta,tout_list,obs_list,M)
+  k4[i] = frac_list("LV",x,theta,tout_list, obs_list,M)
+}
+var(exp(k1))/mean(exp(k1))^2
+var(exp(k2))/mean(exp(k2))^2
+var(exp(k3))/mean(exp(k3))^2
+var(exp(k4))/mean(exp(k4))^2
+
+
+
+check_estimators = function(xt_data,xttau_data,inS){
+  estimate = run_algorithm("LV",x,theta,tout_list[1],lower_list[1,],upper_list[1,],tau_list[1])
+  estimate$xt_data = xt_data
+  estimate$xttau_data = xttau_data
+  estimate$inS = inS
+
+  Q = get_coffin_matrix("LV",lower_list[1,],upper_list[1,],theta)
+  P = cexpm(Q*tau_list[1])
+  v = rep(0,nrow(Q))
+  v[state_to_index(obs_list[1,],lower_list[1,],upper_list[1,])+1] = 1
+  vP = vT_exp_Q(v,t(Q)*tau_list[1,],1e-20,F,T,F)
+
+  estimator = get_estimate(estimate,lower_list[1,],upper_list[1,],vP,obs_list[1,])
+  estimator_P = get_estimate_noise_P2(estimate,lower_list[1,],upper_list[1,],P,obs_list[1,],Pf)
+  c(estimator,estimator_P)
+}
+check_estimators(
+  xt_data=obs_list[1,]+c(5,5),
+  xttau_data=obs_list[1,]+c(5,-5),
+  inS=T
+)
+length(d2)
+get_particle_ESS = function(num_particles = 10000){
+  set.seed(1)
+  d2 = frac_particle_filter_debug("LV",x,theta,tout_list,obs_list_noise,num_particles)
+  for(i in 1:length(d2)){
+    if(d2[[i]]$log_prob==0){
+      stop(paste0("Prob 0. Obs: ",i))
+    }
+  }
+  set.seed(1)
+  d1 = RB_particle_filter_debug("LV",x,theta,tout_list,lower_list,upper_list,tau_list,obs_list_noise,num_particles)
+  set.seed(1)
+  d3 = RB_particle_filter_debug("LV",x,theta,tout_list,lower_list-1,upper_list+1,tau_list,obs_list_noise,num_particles)
+  set.seed(1)
+  d4 = RB_particle_filter_debug("LV",x,theta,tout_list,lower_list+1,upper_list-1,tau_list,obs_list_noise,num_particles)
+
+  M = get_box_details_string(d1,tout_list)
+  plot(c(0, 1), c(0, 1), ann = F, bty = 'n', type = 'n', xaxt = 'n', yaxt = 'n')
+  text(x = 0.33, y = 0.5, M[[1]], 
+      cex = 1.6, col = "black")
+  text(x = 0.66, y = 0.5, M[[2]], 
+      cex = 1.6, col = "black")
+  text(x = 0.56, y = 0.15, paste0("Theta: ",toString(theta)), 
+      cex = 1, col = "black")
+  text(x = 0.56, y = 0.10, paste0("(True Theta: ",toString(c(0.5,0.0025,0.3)),")"), 
+      cex = 1, col = "black")
+  
+  results = matrix(nrow=length(tout_list),ncol=4)
+  colnames(results) = c('Frac','RB','RB_big','RB_small')
+  rownames(results) = tout_list
+  for(i in 1:length(tout_list)){
+    results[i,] = c(
+      sum(d2[[i]]$weights)^2/sum(d2[[i]]$weights^2),
+      sum(d1[[i]]$particle_weights)^2/sum(d1[[i]]$particle_weights^2),
+      sum(d3[[i]]$particle_weights)^2/sum(d3[[i]]$particle_weights^2),
+      sum(d4[[i]]$particle_weights)^2/sum(d4[[i]]$particle_weights^2)
+    )
+  }
+  return(results/num_particles)
+}
+
+get_particle_ESS_plot = function(num_particles = 100000){
+  theta_case = "True Theta"
+  theta_case = "Incorrect Theta"
+  # obs_case = "Exact Obs"
+  obs_case = "Inexact (halfwidth=4)"
+
+  pdf(paste0("simulation-study/LV/Particle ESS/",theta_case,"/",obs_case,"/plot1.pdf"))
+  set.seed(1)
+  plot_RB_MJP("LV",x,theta,tout_list,lower_list,upper_list,tau_list,obs_list_noise,20,c('Prey','Predator'),c('blue','red'),c(0,400))
+  z = get_particle_ESS(num_particles)
+  plot(z[,1],type='o',col='black',ylim=range(z),xlab='Obs time',ylab='ESS/particle',main=obs_case,sub=theta_case)
+  legend(x=4,y=max(z),legend=c('Width=10','Width=8','Width=6','Bootstrap'),col=c('red','blue','darkgreen','black'),lty=c(1,1,1,1),pch=c(1,1,1,1))
+  lines(z[,2],type='o',col='blue')
+  lines(z[,3],type='o',col='red')
+  lines(z[,4],type='o',col='darkgreen')
+  z=z/z[,1]
+  plot(z[,1],type='o',col='black',ylim=range(z),xlab='Obs time',ylab='Relative ESS/particle',main=obs_case,sub=theta_case)
+  legend(x=4,y=max(z),legend=c('Width=10','Width=8','Width=6','Bootstrap'),col=c('red','blue','darkgreen','black'),lty=c(1,1,1,1),pch=c(1,1,1,1))
+  lines(z[,2],type='o',col='blue')
+  lines(z[,3],type='o',col='red')
+  lines(z[,4],type='o',col='darkgreen')
+  dev.off()
+}
+
+benchmark_cexpm = function(){
+  set.seed(1)
+  results = list()
+  for(k in 0:15){
+    total_time = c()
+    exp_time = c()
+    gillespie_time = c()
+    for(i in 1:100){
+      d1 = RB_particle_filter_debug("LV",x,theta,tout_list,obs_list-k,obs_list+k,tau_list,obs_list_noise,1000)
+      total_time = c(total_time,sum(sapply(tout_list,function(x){d1[[x]]$entire_time}))*10^(-6))
+      exp_time = c(exp_time,sum(sapply(tout_list,function(x){d1[[x]]$exp_time}))*10^(-6))
+      gillespie_time = c(gillespie_time,d1[[1]]$sum(sapply(tout_list,function(x){d1[[x]]$gillespie_time}))*10^(-6))
+    }
+    df = data.frame(total_time=total_time,exp_time=exp_time,gillespie_time=gillespie_time)
+    results[[k+1]]=df
+  }
+  return(results)
+}
+df1_ = benchmark_cexpm() # ARMA
+df2_ = benchmark_cexpm() # Chris
+
+df1_[[6]][,1]
+
+# 2x-1
+(upper_list+1)-(lower_list-1)+1
+
+get_Z = function(z){
+  Z = data.frame(matrix(nrow=length(z),ncol=2))
+  colnames(Z)=c('time','group')
+  for(i in 1:ncol(z)){
+    Z[i*nrow(z)+(1:nrow(z)),1] = z[,i]
+    Z[i*nrow(z)+(1:nrow(z)),2] = i
+  }
+  return(Z)
+}
+
+pdf("simulation-study/LV/ExpTime/Boxplot_Exp.pdf")
+par(mfrow=c(1,2))
+# Exp time
+z1 = sapply(df1_,function(x){x[,2]}) # ARMA
+z2 = sapply(df2_,function(x){x[,2]}) # Chris
+Z1 = get_Z(z1)
+Z2 = get_Z(z2)
+boxplot(time~group,data=Z1,ylim=c(0,2000),main='ARMA',xlab="Box halfwidth",ylab="Matrix exp time",cex=1.25,axis.cex=1.5)
+lines(apply(z1,MARGIN=2,mean),type='o',pch=4,lwd=1.5,col='blue')
+boxplot(time~group,data=Z2,ylim=c(0,2000),main='Chris',xlab="Box halfwidth",ylab="Matrix exp time",cex=1.25,axis.cex=1.5)
+lines(apply(z2,MARGIN=2,mean),type='o',lwd=1.5,col='blue')
+
+# Gillespie time
+z1 = sapply(df1_,function(x){x[,3]}) # ARMA
+z2 = sapply(df2_,function(x){x[,3]}) # Chris
+Z1 = get_Z(z1)
+Z2 = get_Z(z2)
+boxplot(time~group,data=Z1,ylim=c(0,50),main='ARMA',xlab="Box halfwidth",ylab="Gillespie time",cex=1.25,axis.cex=1.5)
+lines(apply(z1,MARGIN=2,mean),type='o',pch=4,lwd=1.5,col='blue')
+boxplot(time~group,data=Z2,ylim=c(0,50),main='Chris',xlab="Box halfwidth",ylab="Gillespie time",cex=1.25,axis.cex=1.5)
+lines(apply(z2,MARGIN=2,mean),type='o',lwd=1.5,col='blue')
+dev.off()
+par(mfrow=c(1,1))
+
+median(df1_[[12]][,2])
+median(df2_[[12]][,2])
+
+pdf("ExpTime.pdf")
+plot(0:20,lapply(df2_,function(x){mean(x[,2])}),
+xlab = "Box width",ylab="Relative time spent Exponentiating",type='o',cex=1.5,col='red',main='1000 Particles')
+lines(0:20,lapply(df1_,function(x){mean(x[,2])}),
+xlab = "Box width",ylab="Relative time spent Exponentiating",type='o',cex=1.5)
+legend(x=3,y=0.9,legend=c("Arma","Chris"),col=c('black','red'),lty=c(1,1))
+dev.off()
+
+get_particle_ESS_plot(1000000)
+theta = c(0.6,0.0025,0.3)
+theta = c(0.5,0.0025,0.3)
+theta = c(0.45,0.0025,0.3)
+
+get_mu("LV",x,c(0.6,0.0025,0.3))
+
+d1 = RB_particle_filter_debug("LV",x,theta,tout_list,lower_list,upper_list,tau_list,obs_list_noise,100000)
+d2 = frac_particle_filter_debug("LV",x,theta,tout_list,obs_list_noise,100000)
+ESS1 = c()
+ESS2 = c()
+for(i in 1:5){
+  ESS1 = c(ESS1,sum(d2[[i]]$weights)^2/sum(d2[[i]]$weights^2))
+  ESS2 = c(ESS2,sum(d1[[i]]$particle_weights)^2/sum(d1[[i]]$particle_weights^2))
+}
+
+plot(ESS1,type='o',ylim=c(0,2000))
+lines(ESS2,type='o')
+
+plot(ESS1,type='o')
+
+plot(ESS2/ESS1,type='o')
+
+table(d1[[3]]$particle_weights)
+table(d2[[5]]$weights)
+which(d2[[5]]$weights==1)
+d2[[5]]$presample[87243,]
+
+v = (d2[[5]]$presample==obs_list[5,])
+d1[[5]]$presample[which(!colSums(t(d1[[5]]$presample) != obs_list[5,]+c(1,0))),]
+
+
+
+

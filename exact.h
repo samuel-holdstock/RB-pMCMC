@@ -2,10 +2,6 @@
 #define EXACT_H
 
 #include "main.h"
-#include "get_Q.h"
-
-//[[Rcpp::depends(RcppArmadillo)]]
-#include <Rcpp.h>
 
 double get_variance_exact(const std::string &model_name, const arma::vec &thetas, 
 const double &tout, const double &tau, const arma::vec &start, const arma::vec &target, 

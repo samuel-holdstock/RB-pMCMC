@@ -1,9 +1,7 @@
 #ifndef RATES_H
 #define RATES_H
 
-#include <RcppArmadillo.h>
-// [[Rcpp::depends(RcppArmadillo)]]
-#include <memory>
+#include "main.h"
 
 class Model{
   public:

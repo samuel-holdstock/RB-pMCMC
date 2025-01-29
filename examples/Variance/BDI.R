@@ -321,3 +321,9 @@ source("examples/Parameters/SIR_N/Equilibrium (N=1000).R")
 
 qnorm(1-0.025/2)
 
+get_variance_exact("BDI",theta,tout,0.1,x,obs,90,110,lower_limit,upper_limit)
+get_variance_exact2("BDI",theta,tout,0.1,x,obs,90,110,lower_limit,upper_limit)
+get_variance_exact3("BDI",theta,tout,0.1,x,obs,90,110,lower_limit,upper_limit)
+
+z$delta
+expm(get_coffin_matrix("BDI",90,110,theta)*0.1)

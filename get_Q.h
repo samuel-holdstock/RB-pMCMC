@@ -1,17 +1,15 @@
 #ifndef GET_Q_H
 #define GET_Q_H
-#include <RcppArmadillo.h>
-// [[Rcpp::depends(RcppArmadillo)]]
+
+#include "main.h"
 
 void calculate_Q(arma::vec upper, arma::vec lower);
 
-//[[Rcpp::export]]
 int state_to_index(
 arma::vec state,
 arma::vec lower,
 arma::vec upper);
 
-//[[Rcpp::export]]
 arma::vec index_to_state(
 int index,
 arma::vec lower,

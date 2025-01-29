@@ -1,15 +1,7 @@
 #ifndef REXPQ_H
 #define REXPQ_H
 
-#include <iostream>
-
-#include <RcppArmadillo.h>
-// [[Rcpp::depends(RcppArmadillo)]]
-
-#include <cmath>
-#include <boost/math/special_functions/gamma.hpp>
-#include <boost/math/distributions/poisson.hpp>
-#include <chrono>
+#include "main.h"
 
 using namespace std;
 

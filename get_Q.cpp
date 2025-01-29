@@ -24,28 +24,50 @@
 //     }
 // } 
 
+// int state_to_index(
+// arma::vec state,
+// arma::vec lower,
+// arma::vec upper){
+//     int num_param = state.n_elem;
+//     int prev = 1;
+//     int index = 0;
+//     bool coffin = false;
+//     int state_diff = 0;
+//     int box_diff = 0;
+//     for(int i=num_param-1;0<=i;--i){
+//         state_diff = state[i]-lower[i];
+//         box_diff = upper[i]-lower[i]+1;
+//         index += (state_diff % (prev*box_diff)) * prev;
+//         prev *= box_diff;
+//         if(state_diff+1>box_diff||state_diff<0){
+//             coffin = true;
+//         }
+//     }
+//     if(coffin){
+//         index = prev;
+//     }
+//     return(index);
+// }
 //[[Rcpp::export]]
 int state_to_index(
 arma::vec state,
 arma::vec lower,
 arma::vec upper){
     int num_param = state.n_elem;
-    int prev = 1;
     int index = 0;
     bool coffin = false;
     int state_diff = 0;
-    int box_diff = 0;
-    for(int i=num_param-1;0<=i;--i){
+    int box_diff = 1;
+    for(int i=num_param-1;i>=0;--i){
         state_diff = state[i]-lower[i];
-        box_diff = upper[i]-lower[i]+1;
-        index += (state_diff % (prev*box_diff)) * prev;
-        prev *= box_diff;
-        if(state_diff+1>box_diff||state_diff<0){
+        index += state_diff*box_diff;
+        box_diff *= (upper[i]-lower[i]+1);
+        if(state[i]>upper[i]||lower[i]>state[i]){
             coffin = true;
         }
     }
     if(coffin){
-        index = prev;
+        index = box_diff;
     }
     return(index);
 }
@@ -96,28 +118,26 @@ arma::vec theta,
 arma::mat S,
 std::function<arma::vec(const arma::vec &x, const arma::vec &theta)> rates_function
 ){
-    int num_param = lower.n_elem;
+    int state_dim  = lower.n_elem;
     int num_react = S.n_cols;
     int total_points = 1;
-    for(int i=0;i<num_param;++i){
+    for(int i=0;i<state_dim;++i){
         total_points *= (upper[i]-lower[i]+1);
     }
-    arma::vec state(num_param);
-    arma::vec temp_state(num_param);
+    arma::vec state(state_dim);
+    arma::vec temp_state(state_dim);
     arma::mat Q(total_points+1,total_points+1);
     arma::vec rate(num_react);
     int temp_index;
     double stay_rate;
     int coffin_index = total_points;
-    for(int i=0;i<total_points;i++){
+    for(int i=0;i<total_points;++i){
         state = index_to_state(i,lower,upper);
         rate = rates_function(state,theta);
         stay_rate = 0;
         for(int j=0;j<num_react;++j){
             stay_rate += rate[j];
-            for(int k=0;k<num_param;++k){
-                temp_state[k] = state[k]+S(k,j);
-            }
+            temp_state = state+S.col(j);
             if(inBox(temp_state,lower,upper)){
                 temp_index = state_to_index(temp_state,lower,upper);                    
                 Q(i,temp_index) = Q(i,temp_index) + rate[j];
@@ -130,6 +150,7 @@ std::function<arma::vec(const arma::vec &x, const arma::vec &theta)> rates_funct
     }
     return(Q);
 }
+
 
 //[[Rcpp::export]]
 int get_noise_index(arma::vec noise_lower,arma::vec noise_upper,arma::vec lower,arma::vec upper,arma::vec coords){

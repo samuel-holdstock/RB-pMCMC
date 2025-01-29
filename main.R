@@ -14,4 +14,3 @@ source("examples/Variance/BDI.R")
 
 source("examples/Q_Matrix/BDI_Q.R")
 source("examples/Q_Matrix/SIR_N_Q.R")
-
